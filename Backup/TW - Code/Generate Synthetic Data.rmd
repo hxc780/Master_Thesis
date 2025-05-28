@@ -1,0 +1,93 @@
+---
+title: "Generate Synthetic Signal from Model"
+author: "Lars Reiter Nielsen"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE,fig.width = 8, fig.height = 6)
+
+```
+
+```{r chunk 0}
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+source("0 Utils/HelperFunctions.R")
+```
+
+
+
+## Simulate a signal
+
+```{r chunk 1}
+#set.seed(564)
+# --- SIMULATE FROM MODEL: --- # 
+# f(x) = A0*sin(g(x)+b)-B(x)*sin(2g(x)+2b+pi/2)
+# g(x) = int_t=0^x xi_t dt
+# dxi_t = -beta*(xi_t-a)*dt + sigma*xi_t*dw_t
+
+N <- 500 #sample(c(200,300,400),1)
+delta =  .1 # 0.1
+psi <- 0.82 #runif(1, 0.75, 0.95)
+beta <- -1/delta*log(psi)
+sigma <- 0.15 #runif(1,0.2,0.6)
+sigma_B <- 0.5 #runif(1,0.3,1)
+A <- 0.5 #runif(1,0.4,0.6)
+B0 <- 0.8 #runif(1, 0.5,1)
+a <- 0.07/delta #runif(1,min=0.05,max=0.15) # from approx 1~10 cycles in a signal
+b <- pi/4 #runif(1,min=0,max=2*pi)
+omega <- 0.12 #runif(1,0.5,0.7)*sqrt(2*a*beta)
+omega2dBeta <- omega^2/beta
+
+truepars <- c(a,b,A,B0, sigma_B, psi, beta, sigma, omega^2)
+
+
+SimData <- SimSignal(a=a, b=b,A=A, B0=B0, beta=beta, omega=omega, sigma_B=sigma_B, sigma=sigma, N=N, delta=delta)
+
+# signal characteristics:
+x <- SimData$x 
+Y <- SimData$Y # with noise
+Y0 <- SimData$Y0 # w/o noise
+Ysm <- stats::predict(loess(Y~x,span=0.05)) # smoothed signal
+xi <- SimData$xi
+gxi <- SimData$gxi
+Bx <- SimData$Bx
+(ExpGLG <- SimData$ExpGLG)
+xkstar <- SimData$xkstar.idx
+vkstar <- sort(c(FindXstar(gxi,b,0), FindXstar(gxi,b,pi)))
+Bk <- SimData$Bk
+
+# --- PLOT DATA SIGNAL --- #
+data_long = data.frame(x = rep(x, 4),
+                       trace = c(Y, rep(NA, 3*N)),
+                       trace0 = c(Y0, rep(NA,3*N)),
+                       upperenv = c(A+Bx, rep(NA, 3*N)),
+                       lowerenv = c(-Bx, rep(NA,3*N)),
+                       xi = c(rep(NA,N), xi, rep(NA,2*N)),
+                       gxi = c(rep(NA,2*N), gxi, rep(NA,N)),
+                       Rx = c(rep(NA,3*N), B0-Bx),
+                       type = c(rep("A. y(x)", N),rep("B. xi(x)",N), rep("C. g(x)", N), rep("D. R(x)", N))
+)
+ 
+common_theme <- theme(
+  axis.text = element_text(size = 10),       
+  axis.title = element_text(size = 10)
+)
+
+ggplot(data_long, aes(x = x, y = trace)) +
+  geom_vline(xintercept = x[xkstar], color = "darkgray", linetype = "dashed", linewidth = 0.8) +
+  geom_line(color = "black", linewidth = .8) +
+  geom_line(aes(y = xi), color = "black", linewidth = .8, alpha = 1) +
+  geom_line(aes(y = gxi), color = "black", linewidth = .8, alpha = 1) +
+  geom_line(aes(y = Rx), color = "black", linewidth = .8, alpha = 1) +
+  labs(x = "x", y = "") +
+  theme_bw() +
+  common_theme +
+  facet_wrap(~ type, ncol = 1, strip.position = "right", scales = "free_y")
+
+df <- data.frame(Y = Y, x = x)
+write.csv(df, "Signal_Synthetic.csv", row.names = FALSE)
+```
