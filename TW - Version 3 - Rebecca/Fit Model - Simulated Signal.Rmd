@@ -1,0 +1,107 @@
+---
+title: "Time Warp Model using C code"
+author: "Lars Reiter"
+date: "2025-03-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Source files
+source("0 Utils/HelperFunctions.R")
+source("0 Utils/Estimation - NoCosine.R")
+source("0 Utils/SMCplus - Filter.R")
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+## Simulation
+
+```{r}
+# Staring parameters
+delta <- 1
+N <- 500 
+a <- 0.05 # 0.05
+beta <- .07 # 0.07
+omega <-  0.08 #sqrt(beta/betadomega2) # 0.08
+rho <- exp(-beta*delta)
+sigma <- 0.2
+A <- 0.7
+b <- 0
+params.true <- c(beta, omega, a, A, b, sigma, N)
+
+# FIT
+justPlot <- FALSE
+Csyntax <- TRUE
+n.saem <- 100
+n.particles <- 1500
+warp.obj <- warp.alg(params=params.true,
+                     delta=delta,
+                     n.saem=n.saem,
+                     n.particles = n.particles,
+                     Csyntax=Csyntax,
+                     justPlot = justPlot)
+```
+
+
+```{r}
+# PLOT
+Y <- warp.obj$Y
+Y.init.hat <- warp.obj$Y.init.hat
+Y.hat <- warp.obj$Y.hat
+xi.hat <- warp.obj$xi.hat
+gx.hat <- warp.obj$gx.hat
+
+plot(Y, type="l")
+lines(Y.init.hat, col="red")
+lines(Y.hat, col="blue")
+plot(xi.hat, type="l")
+plot(gx.hat, type="l")
+
+# Create a data frame with true parameter values
+true_df <- data.frame(Parameter = colnames(warp.obj$param.est),
+                      TrueValue = c(as.numeric(params.true[-7]), omega^2/(2*a*beta)))
+
+# Create the long-format data frame for parameter estimates
+df <- as.data.frame(warp.obj$param.est) %>%
+  mutate(iteration = 1:(n.saem + 1)) %>%
+  pivot_longer(cols = -iteration, names_to = "Parameter", values_to = "Estimate")
+
+# Plot trajectories with true parameter horizontal lines
+ggplot(df, aes(x = iteration, y = Estimate)) +
+  geom_line(size = 1) +
+  geom_hline(data = true_df, aes(yintercept = TrueValue),
+             color = "red", linetype = "dashed", size = 0.8) +
+  labs(title = "Parameter Estimates Over Iterations",
+       x = "Iteration",
+       y = "Estimated Value") +
+  theme_minimal() +
+  facet_wrap(~ Parameter, scales = "free")
+
+a.hat <- warp.obj$theta.hat["a"]
+omega.hat <- warp.obj$theta.hat["omega"]
+beta.hat<- warp.obj$theta.hat["beta"]
+(betadomega2.lowerbound.hat <- 1/(2*a.hat))
+(betadomega2.hat <- beta.hat/(omega.hat^2))
+(fom.hat <- unname(omega.hat^2/(2*a.hat*beta.hat)))
+(cv.hat <- unname(omega.hat/(beta.hat*sqrt(N*a.hat))))
+
+param_table <- data.frame(
+  Parameter = c("a", "omega", "beta", 
+                "betaomega2.lowerbound", "betaomega2", 
+                "fom", "cv"),
+  True_Value = c(a, omega, beta, 
+                 1/(2*a), beta/(omega^2), 
+                 omega^2/(2*a*beta), omega/(beta*sqrt(N*a))),
+  Estimated_Value = c(a.hat, omega.hat, beta.hat, 
+                      betadomega2.lowerbound.hat, betadomega2.hat, 
+                      fom.hat, cv.hat)
+)
+
+# Print the table
+knitr::kable(param_table, digits = 4)
+```
+
