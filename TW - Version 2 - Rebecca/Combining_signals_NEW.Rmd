@@ -1,0 +1,199 @@
+---
+title: "Combining Signals"
+author: "Rebecca Holm"
+date: "2025-03-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#set.seed(123)
+# Source files
+source("0 Utils/HelperFunctions.R")
+source("0 Utils/Estimation - NoCosine.R")
+source("0 Utils/Preprocessing - Amplitude Estimation.R")
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+library(ggplot2)
+```
+
+## Simulation
+
+```{r}
+delta <- 1
+df_Sr <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Sr/data_186.csv")
+df_Ba <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Ba/data_186.csv")
+df_Pb <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Pb/data_186.csv")
+```
+
+```{r}
+Y_Sr <- df_Sr %>% select(no_trend) %>% unlist()
+std_Y_Sr <- sd(Y_Sr) # save for later (if we want absolute concentration)
+mean_Y_Sr <- mean(Y_Sr) # save for later (if we want absolute concentration)
+Y_Sr <- (Y_Sr-mean_Y_Sr)/std_Y_Sr # standardize signal
+vA_Sr <- AmpEstimation(Y_Sr) # Estimate varying amplitude
+Z_Sr <- Y_Sr/vA_Sr # Define normalized signal
+```
+
+```{r}
+plot(Y_Sr, type="l") 
+lines(Z_Sr, col="red") 
+
+plot(Z_Sr, col="red", type = "l")
+
+```
+
+
+```{r}
+# Load raw data for Ba
+Y_Ba <- df_Ba %>% select(no_trend) %>% unlist()
+std_Y_Ba <- sd(Y_Ba) # save for later (if we want absolute concentration)
+mean_Y_Ba <- mean(Y_Ba) # save for later (if we want absolute concentration)
+Y_Ba <- (Y_Ba-mean_Y_Ba)/std_Y_Ba # standardize signal
+vA_Ba <- AmpEstimation(Y_Ba) # Estimate varying amplitude
+Z_Ba <- Y_Ba/vA_Ba # Define normalized signal
+```
+
+```{r}
+# Load raw data for Pb
+Y_Pb <- df_Pb %>% select(no_trend) %>% unlist()
+std_Y_Pb <- sd(Y_Pb) # save for later (if we want absolute concentration)
+mean_Y_Pb <- mean(Y_Pb) # save for later (if we want absolute concentration)
+Y_Pb <- (Y_Pb-mean_Y_Pb)/std_Y_Pb # standardize signal
+vA_Pb <- AmpEstimation(Y_Pb) # Estimate varying amplitude
+Z_Pb <- Y_Pb/vA_Pb # Define normalized signal
+```
+
+
+```{r}
+df_Sr_proc <- tibble(Elapsed_DIV_Time = df_Sr$Elapsed_DIV_Time, Y_Sr = Y_Sr, Z_Sr = Z_Sr)
+df_Ba_proc <- tibble(Elapsed_DIV_Time = df_Ba$Elapsed_DIV_Time, Y_Ba = Y_Ba, Z_Ba = Z_Ba)
+df_Pb_proc <- tibble(Elapsed_DIV_Time = df_Pb$Elapsed_DIV_Time, Y_Pb = Y_Pb, Z_Pb = Z_Pb)
+```
+
+
+
+Merger først mine datasæts så de starter det samme sted:
+```{r}
+merged_df <- full_join(df_Sr_proc, df_Ba_proc, by = "Elapsed_DIV_Time") %>%
+             full_join(df_Pb_proc, by = "Elapsed_DIV_Time") %>%
+             arrange(Elapsed_DIV_Time)
+```
+
+
+# Lægger de 3 Hilbert Transformerede signaler sammen og dividerer med 3, gemmer den under navnet Z for at skulle ændre mindst muligt 
+
+Hvis der er data i 2 af kolonnerne for hhv. Z eller Y så dividerer jeg kun med 2. Samme for hvis der er data for 1 eller alle 3 
+```{r}
+# Combined standardized signals (Y)
+merged_YZ <- merged_df %>%
+  mutate(
+    sum_Y = rowSums(across(c(Y_Sr, Y_Ba, Y_Pb)), na.rm = TRUE),
+    n_Y = rowSums(!is.na(across(c(Y_Sr, Y_Ba, Y_Pb)))),
+    avg_Y = ifelse(n_Y > 0, sum_Y / n_Y, NA),
+
+    sum_Z = rowSums(across(c(Z_Sr, Z_Ba, Z_Pb)), na.rm = TRUE),
+    n_Z = rowSums(!is.na(across(c(Z_Sr, Z_Ba, Z_Pb)))),
+    avg_Z = ifelse(n_Z > 0, sum_Z / n_Z, NA)
+  )
+```
+
+```{r}
+# plot(Y_Ba, type="l") # with varying amplitude
+# lines(Z_Ba, col="red") # without varying amplitude
+```
+
+
+```{r}
+plot(merged_YZ$avg_Y, type="l") # with varying amplitude
+lines(merged_YZ$avg_Z, col="red") # without varying amplitude
+```
+
+
+```{r}
+# FIT Time Warping Model
+n.saem <- 100 # number of SAEM iterations
+n.siman <- 3000 # number of Simulated Annealing iterations (initialization)
+n.particles <- 1500 # number of SMC particles
+warp.obj <- warp.alg(merged_YZ$avg_Z,
+                     n.siman = n.siman, 
+                     n.saem=n.saem, 
+                     n.particles = n.particles,
+                     SimAn.MinPeaks = 5, # minimum number of cycles (= years)
+                     SimAn.MaxPeaks = 35, # maximum number of peaks (= years)
+                     Csyntax = TRUE) # use C-syntax: faster, but normal approximated model
+```
+
+```{r}
+# PLOT
+
+# load fit objects
+Z <- warp.obj$Y
+Z.init.hat <- warp.obj$Y.init.hat # Simulated Annealing fit, i.e. g(x) = piecewise linear
+Z.hat <- warp.obj$Y.hat
+xi.hat <- warp.obj$xi.hat
+gx.hat <- warp.obj$gx.hat
+
+# plot raw and fitted signal - with varying amplitude 
+plot(Z, type="l")
+lines(Z.hat, col="red", lwd=2)
+
+# plot growth-time process
+plot(gx.hat/(2*pi), type="l", xlab="index", ylab="years")
+
+df <- as.data.frame(warp.obj$param.est) %>%
+  mutate(iteration = 1:(n.saem + 1)) %>%
+  pivot_longer(cols = -iteration, names_to = "Parameter", values_to = "Estimate")
+
+# Plot trajectories with true parameter horizontal lines
+ggplot(df, aes(x = iteration, y = Estimate)) +
+  geom_line(size = 1) +
+  labs(title = "Parameter Estimates Over Iterations",
+       x = "Iteration",
+       y = "Estimated Value") +
+  theme_minimal() +
+  facet_wrap(~ Parameter, scales = "free")
+```
+
+
+```{r}
+if (!dir.exists("Plots_NEW/Merged/186")) dir.create("Plots_NEW/Merged/186")
+
+# Plot 1: Raw and Fitted Signal
+png("Plots_NEW/Merged/186/186_plot_raw_vs_fitted.png", width = 800, height = 600)
+plot(Z, type = "l", main = "Raw vs Fitted Signal for Whale 186", ylab = "Signal", xlab = "Index")
+lines(Z.hat, col = "red", lwd = 2)
+dev.off()
+
+# Plot 2: Growth-Time Process
+png("Plots_NEW/Merged/186/186_plot_growth_time_process.png", width = 800, height = 600)
+plot(gx.hat / (2 * pi), type = "l", xlab = "Index", ylab = "Years", main = "Growth-Time Process for Whale 186")
+dev.off()
+
+# Plot 3: Parameter Estimates Over Iterations (ggplot)
+p <- ggplot(df, aes(x = iteration, y = Estimate)) +
+  geom_line(size = 1) +
+  labs(title = "Parameter Estimates Over Iterations for Whale 186",
+       x = "Iteration",
+       y = "Estimated Value") +
+  theme_minimal() +
+  facet_wrap(~ Parameter, scales = "free")
+
+png("Plots_NEW/Merged/186/186_plot_parameter_estimates.png", width = 1000, height = 800)
+print(p)
+dev.off()
+
+saveRDS(warp.obj, file = "Plots_NEW/Merged/186/186_warp_obj_saved.rds")
+#warp.obj <- readRDS("Plots_NEW/Sr/186/186_warp_obj_saved.rds")
+
+```
+
+
+```{r}
+max(gx.hat)/(2*pi)
+```
+
+

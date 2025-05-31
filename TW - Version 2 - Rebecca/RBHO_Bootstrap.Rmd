@@ -1,0 +1,122 @@
+---
+title: "Time Warp Model using C code"
+author: "Rebecca Holm"
+date: "2025-03-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#set.seed(123)
+
+# Source files
+source("0 Utils/HelperFunctions.R")
+source("0 Utils/Estimation - NoCosine.R")
+source("0 Utils/Preprocessing - Amplitude Estimation.R")
+source("0 Utils/Bootstrap.R")
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+## Simulation
+
+```{r}
+delta <- 1
+#df <- read.csv("PilotWhale_Signal2.csv") # Real data
+# df <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Ba/data_210113.csv") # Real data
+
+
+# # Load raw data
+# Y <- df %>% select(no_trend) %>% unlist()
+# std_Y <- sd(Y) # save for later (if we want absolute concentration)
+# mean_Y <- mean(Y) # save for later (if we want absolute concentration)
+# Y <- (Y-mean_Y)/std_Y # standardize signal
+# vA <- AmpEstimation(Y) # Estimate varying amplitude
+# Z <- Y/vA # Define normalized signal
+# 
+# plot(Y, type="l") # with varying amplitude
+# lines(Z, col = "red")
+# plot(Z, col="red", type = "l") # without varying amplitude
+```
+
+
+```{r}
+# FIT Time Warping Model
+n.saem <- 100 # number of SAEM iterations
+n.siman <- 3000 # number of Simulated Annealing iterations (initialization)
+n.particles <- 1500 # number of SMC particles
+
+# warp.obj <- warp.alg(Z,
+#                      n.siman = n.siman, 
+#                      n.saem=n.saem, 
+#                      n.particles = n.particles,
+#                      SimAn.MinPeaks = 5, # minimum number of cycles (= years)
+#                      SimAn.MaxPeaks = 35, # maximum number of peaks (= years)
+#                      Csyntax = TRUE) # use C-syntax: faster, but normal approximated model
+```
+
+```{r}
+# PLOT
+warp.obj <- readRDS("Plots_NEW/Merged/210151/210151_warp_obj_saved.RDS")
+
+# load fit objects
+Z <- warp.obj$Y
+Z.init.hat <- warp.obj$Y.init.hat # Simulated Annealing fit, i.e. g(x) = piecewise linear
+Z.hat <- warp.obj$Y.hat
+xi.hat <- warp.obj$xi.hat
+gx.hat <- warp.obj$gx.hat
+
+# plot raw and fitted signal - with varying amplitude 
+plot(Z, type="l")
+lines(Z.hat, col="red", lwd=2)
+
+# plot growth-time process
+plot(gx.hat/(2*pi), type="l", xlab="index", ylab="years")
+
+df <- as.data.frame(warp.obj$param.est) %>%
+  mutate(iteration = 1:(n.saem + 1)) %>%
+  pivot_longer(cols = -iteration, names_to = "Parameter", values_to = "Estimate")
+
+# Plot trajectories with true parameter horizontal lines
+ggplot(df, aes(x = iteration, y = Estimate)) +
+  geom_line(size = 1) +
+  labs(title = "Parameter Estimates Over Iterations",
+       x = "Iteration",
+       y = "Estimated Value") +
+  theme_minimal() +
+  facet_wrap(~ Parameter, scales = "free")
+```
+```{r}
+max(gx.hat)/(2*pi)
+```
+
+
+
+# #################### bootstrap ####################
+```{r}
+start_time <- Sys.time()
+
+M <- 10 # number of bootstrap replicates (i.e. number of repetetions, i.e. number of age copies)
+bootstrap_data <- tw_bootstrap(Z, Z.hat, 
+                               M=M, 
+                               n.siman = n.siman, 
+                               n.saem=n.saem, 
+                               n.particles=n.particles, 
+                               SimAn.MinPeaks = 5, SimAn.MaxPeaks=35)
+
+
+bootstrap_ages <- unlist(bootstrap_data$total_cycles) # number of full cycles / i.e. age
+
+end_time <- Sys.time()
+runtime <- end_time - start_time
+print(runtime)
+
+# optional: fitting object (includes estimated parameters of the bootstrap signals, and estimated gx, xi)
+fitting_objects <- bootstrap_data$fitting_objects # try: View(fitting_objects) after this line
+
+saveRDS(bootstrap_data, file = "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/210151_merged_bootstrap_20.rds")
+```
+

@@ -1,0 +1,105 @@
+---
+title: "warp.alg for oversnihgt"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+# Load libraries and source files
+source("0 Utils/HelperFunctions.R")
+source("0 Utils/Estimation - NoCosine.R")
+source("0 Utils/Preprocessing - Amplitude Estimation.R")
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+
+
+# Initialize age results before the loop
+age_results <- data.frame(whale_id = numeric(), age = numeric(), stringsAsFactors = FALSE)
+
+whale_ids <- c(
+   15, 18, 21, 26, 99, 100, 102, 112, 121, 127, 133, 135, 137, 
+   146, 157, 164, 169, 186, 188, 215, 210101, 210106, 210110, 
+   210111, 210113, 210114, 210122, 210124, 210125, 210127, 
+   210129, 210149, 210151, 210160, 210161, 210163, 210169, 210172, 210174, 510158
+)
+
+data_dir <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Removing_outliers_keeping_same_length/peak_data/"
+out_dir <- "Plots_NEW/Peak_data"
+n.saem <- 100
+n.siman <- 3000
+n.particles <- 1500
+
+for (id in whale_ids) {
+  cat("Running warp.alg for Whale", id, "\n")
+  try({
+
+    file_path <- file.path(data_dir, paste0("peak_data_", id, ".csv"))
+    whale_dir <- file.path(out_dir, as.character(id))
+    if (!dir.exists(whale_dir)) dir.create(whale_dir, recursive = TRUE)
+
+    df <- read.csv(file_path)
+    Y <- df %>% select(no_trend) %>% unlist()
+    std_Y <- sd(Y)
+    mean_Y <- mean(Y)
+    Y <- (Y - mean_Y) / std_Y
+    vA <- AmpEstimation(Y)
+    Z <- Y / vA
+
+    warp.obj <- warp.alg(Z,
+                         n.siman = n.siman,
+                         n.saem = n.saem,
+                         n.particles = n.particles,
+                         SimAn.MinPeaks = 5,
+                         SimAn.MaxPeaks = 35,
+                         Csyntax = TRUE)
+
+    Z.hat <- warp.obj$Y.hat
+    gx.hat <- warp.obj$gx.hat
+    df_est <- as.data.frame(warp.obj$param.est) %>%
+      mutate(iteration = 1:(n.saem + 1)) %>%
+      pivot_longer(cols = -iteration, names_to = "Parameter", values_to = "Estimate")
+
+    # Plot 1: Raw vs Fitted
+    png(file.path(whale_dir, paste0(id, "_plot_raw_vs_fitted.png")), width = 800, height = 600)
+    plot(Z, type = "l", main = paste("Raw vs Fitted Signal for Whale", id), ylab = "Signal", xlab = "Index")
+    lines(Z.hat, col = "red", lwd = 2)
+    dev.off()
+
+    # Plot 2: Growth-Time Process
+    png(file.path(whale_dir, paste0(id, "_plot_growth_time_process.png")), width = 800, height = 600)
+    plot(gx.hat / (2 * pi), type = "l", xlab = "Index", ylab = "Years", main = paste("Growth-Time Process for Whale", id))
+    dev.off()
+
+    # Plot 3: Parameter Estimates
+    p <- ggplot(df_est, aes(x = iteration, y = Estimate)) +
+      geom_line(size = 1) +
+      labs(title = paste("Parameter Estimates for Whale", id),
+           x = "Iteration",
+           y = "Estimated Value") +
+      theme_minimal() +
+      facet_wrap(~ Parameter, scales = "free")
+
+    png(file.path(whale_dir, paste0(id, "_plot_parameter_estimates.png")), width = 1000, height = 800)
+    print(p)
+    dev.off()
+
+    # Save warp object
+    saveRDS(warp.obj, file = file.path(whale_dir, paste0(id, "_warp_obj_saved.rds")))
+
+    # Store age and update global state + backup file
+    age_estimate <- max(gx.hat) / (2 * pi)
+    age_results <- rbind(age_results, data.frame(whale_id = id, age = age_estimate))
+    assign("age_results", age_results, envir = .GlobalEnv)
+    saveRDS(age_results, file = "Plots_NEW/Pb/age_results_progress.rds")
+
+    cat("Estimated age (cycles):", round(age_estimate, 2), "\n\n")
+
+  }, silent = TRUE)
+}
+```
+
