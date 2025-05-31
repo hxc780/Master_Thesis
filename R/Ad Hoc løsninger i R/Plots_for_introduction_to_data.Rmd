@@ -1,0 +1,207 @@
+---
+title: "Plots_for_introduction_to_data"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(dplyr)
+```
+
+```{r}
+merged_data_NEW <- read_csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/merged_data_NEW.csv")
+```
+
+
+# 186
+```{r}
+data_186 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_186") %>%
+  select(whale_index, Ba_DIV_Ca, Elapsed_DIV_Time)
+
+data_186$row_number <- seq(1, by=1, length.out=nrow(data_186))
+
+subset(data_186, Ba_DIV_Ca > 0.000025)
+subset(data_186, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_186$Ba_DIV_Ca[707] <- (data_186$Ba_DIV_Ca[708] + data_186$Ba_DIV_Ca[706]) / 2
+data_186$Ba_DIV_Ca[710] <- (data_186$Ba_DIV_Ca[711] + data_186$Ba_DIV_Ca[709]) / 2
+data_186$Ba_DIV_Ca[1370] <- (data_186$Ba_DIV_Ca[1371] + data_186$Ba_DIV_Ca[1369]) / 2
+data_186$Ba_DIV_Ca[1570] <- data_186$Ba_DIV_Ca[1569] + 1*(data_186$Ba_DIV_Ca[1573] - data_186$Ba_DIV_Ca[1569]) / 4
+data_186$Ba_DIV_Ca[1571] <- data_186$Ba_DIV_Ca[1569] + 2*(data_186$Ba_DIV_Ca[1573] - data_186$Ba_DIV_Ca[1569]) / 4
+data_186$Ba_DIV_Ca[1572] <- data_186$Ba_DIV_Ca[1569] + 3*(data_186$Ba_DIV_Ca[1573] - data_186$Ba_DIV_Ca[1569]) / 4
+data_186$Ba_DIV_Ca[2011] <- (data_186$Ba_DIV_Ca[2012] + data_186$Ba_DIV_Ca[2010]) / 2
+data_186$Ba_DIV_Ca[2057] <- (data_186$Ba_DIV_Ca[2058] + data_186$Ba_DIV_Ca[2056]) / 2
+data_186$Ba_DIV_Ca[1892] <- (data_186$Ba_DIV_Ca[1893] + data_186$Ba_DIV_Ca[1891]) / 2
+data_186 <- data_186[-2066,]
+data_186 <- data_186[-2065,]
+data_186 <- data_186[-2064,]
+data_186 <- data_186[-3,]
+data_186 <- data_186[-2,]
+data_186 <- data_186[-1,]
+
+data_186$row_number <- seq(1, by=1, length.out=nrow(data_186))
+```
+
+
+```{r}
+trend_186 <- loess(data_186$Ba_DIV_Ca ~ data_186$Elapsed_DIV_Time)
+trend1_186 <- data.frame(trend_186 = trend_186$fitted, Elapsed_DIV_Time = data_186$Elapsed_DIV_Time)
+```
+
+```{r}
+# subtracting the trend
+data_186$no_trend <- data_186$Ba_DIV_Ca - trend1_186$trend_186
+
+# dividing the new timeseries with the sd(timeserie)
+data_186$nt_sd <- data_186$no_trend/sd(data_186$no_trend)
+
+# see if they oscillate around 0
+p<- ggplot(data_186, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "",
+       x = "Elapsed Time",
+       y = "") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Plots/Osciliate_around_0_plots/Plots_used_for_introduction_to_data/Ba_186.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# 210151
+```{r}
+data_210151 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210151") %>%
+  select(whale_index, Ba_DIV_Ca, Elapsed_DIV_Time)
+
+data_210151$row_number <- seq(1, by=1, length.out=nrow(data_210151))
+
+subset(data_210151, Ba_DIV_Ca > 0.00004)
+subset(data_210151, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210151$Ba_DIV_Ca[1213] <- (data_210151$Ba_DIV_Ca[1214] + data_210151$Ba_DIV_Ca[1212]) / 2
+data_210151 <- data_210151[-1606,]
+data_210151 <- data_210151[-1605,]
+data_210151 <- data_210151[-1604,]
+data_210151 <- data_210151[-1603,]
+data_210151 <- data_210151[-1602,]
+#data_210151 <- data_210151[-1601,]
+#data_210151 <- data_210151[-1600,]
+#data_210151 <- data_210151[-1599,]
+#data_210151 <- data_210151[-1598,]
+#data_210151 <- data_210151[-1597,]
+#data_210151 <- data_210151[-1596,]
+#data_210151 <- data_210151[-1595,]
+#data_210151 <- data_210151[-1594,]
+#data_210151 <- data_210151[-1593,]
+#data_210151 <- data_210151[-1592,]
+#data_210151 <- data_210151[-1591,]
+data_210151 <- data_210151[-3,]
+data_210151 <- data_210151[-2,]
+data_210151 <- data_210151[-1,]
+
+data_210151$row_number <- seq(1, by=1, length.out=nrow(data_210151))
+```
+
+
+```{r}
+trend_210151 <- loess(data_210151$Ba_DIV_Ca ~ data_210151$Elapsed_DIV_Time)
+trend1_210151 <- data.frame(trend_210151 = trend_210151$fitted, Elapsed_DIV_Time = data_210151$Elapsed_DIV_Time)
+```
+
+```{r}
+# subtracting the trend
+data_210151$no_trend <- data_210151$Ba_DIV_Ca - trend1_210151$trend_210151
+
+# dividing the new timeseries with the sd(timeserie)
+data_210151$nt_sd <- data_210151$no_trend/sd(data_210151$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210151, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "",
+       x = "Elapsed Time",
+       y = "") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Plots/Osciliate_around_0_plots/Plots_used_for_introduction_to_data/Ba_210151.png"), 
+         plot = p, width = 8, height = 6)
+  
+
+```
+
+
+# 510158
+
+```{r}
+data_510158 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_510158") %>%
+  select(whale_index, Ba_DIV_Ca, Elapsed_DIV_Time)
+
+data_510158$row_number <- seq(1, by=1, length.out=nrow(data_510158))
+
+subset(data_510158, Ba_DIV_Ca > 0.0000075)
+subset(data_510158, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_510158$Ba_DIV_Ca[7] <- (data_510158$Ba_DIV_Ca[8] + data_510158$Ba_DIV_Ca[6]) / 2
+data_510158$Ba_DIV_Ca[1615] <- (data_510158$Ba_DIV_Ca[1616] + data_510158$Ba_DIV_Ca[1614]) / 2
+data_510158$Ba_DIV_Ca[1600] <- data_510158$Ba_DIV_Ca[1599] + 1*(data_510158$Ba_DIV_Ca[1603] - data_510158$Ba_DIV_Ca[1599])/4
+data_510158$Ba_DIV_Ca[1601] <- data_510158$Ba_DIV_Ca[1599] + 2*(data_510158$Ba_DIV_Ca[1603] - data_510158$Ba_DIV_Ca[1599])/4
+data_510158$Ba_DIV_Ca[1602] <- data_510158$Ba_DIV_Ca[1599] + 3*(data_510158$Ba_DIV_Ca[1603] - data_510158$Ba_DIV_Ca[1599])/4
+
+data_510158 <- data_510158[-2026,]
+data_510158 <- data_510158[-2025,]
+data_510158 <- data_510158[-4,]
+data_510158 <- data_510158[-3,]
+data_510158 <- data_510158[-2,]
+data_510158 <- data_510158[-1,]
+
+data_510158$row_number <- seq(1, by=1, length.out=nrow(data_510158))
+```
+
+
+```{r}
+trend_510158 <- loess(data_510158$Ba_DIV_Ca ~ data_510158$Elapsed_DIV_Time)
+trend1_510158 <- data.frame(trend_510158 = trend_510158$fitted, Elapsed_DIV_Time = data_510158$Elapsed_DIV_Time)
+```
+
+```{r}
+# subtracting the trend
+data_510158$no_trend <- data_510158$Ba_DIV_Ca - trend1_510158$trend_510158
+
+# dividing the new timeseries with the sd(timeserie)
+data_510158$nt_sd <- data_510158$no_trend/sd(data_510158$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_510158, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = " ",
+       x = "Elapsed Time",
+       y = "") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Plots/Osciliate_around_0_plots/Plots_used_for_introduction_to_data/Ba_510158.png"), 
+         plot = p, width = 8, height = 6)
+
+```
+
+

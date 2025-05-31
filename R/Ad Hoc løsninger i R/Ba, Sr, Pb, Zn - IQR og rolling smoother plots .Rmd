@@ -1,0 +1,131 @@
+---
+title: "Untitled"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+---
+title: "Untitled"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r}
+library(dplyr)
+library(zoo)
+library(ggplot2)
+
+# Function to apply rolling median smoothing
+smooth_data <- function(df, cols, window_size = 10) {
+  df <- df %>%
+    mutate(across(all_of(cols), ~ rollapply(.x, width = window_size, FUN = median, fill = NA, align = "center")))
+  return(df)
+}
+
+# Function to remove extreme outliers using IQR
+remove_outliers <- function(df, cols) {
+  for (col in cols) {
+    Q1 <- quantile(df[[col]], 0.25, na.rm = TRUE)
+    Q3 <- quantile(df[[col]], 0.75, na.rm = TRUE)
+    IQR_val <- Q3 - Q1
+    df <- df %>%
+      mutate(!!sym(col) := ifelse(df[[col]] < (Q1 - 3 * IQR_val) | df[[col]] > (Q3 + 3 * IQR_val), NA, df[[col]]))
+  }
+  return(df)
+}
+
+# Function to linearly interpolate missing values
+interpolate_missing <- function(df, cols) {
+  df <- df %>%
+    mutate(across(all_of(cols), ~ na.approx(.x, na.rm = FALSE))) # Linear interpolation
+  return(df)
+}
+
+# List of whale indices
+datasets <- c(
+  "SMP_210127", "SMP_210161", "SMP_210169", "SMP_210174", "SMP_210163", 
+  "SMP_210106", "SMP_510158", "SMP_210113", "SMP_210122", "SMP_210172", 
+  "SMP_210110", "SMP_210124", "SMP_210101", "SMP_210129", "SMP_210125", 
+  "SMP_210111", "SMP_210149", "SMP_210114", "SMP_210160", "SMP_210151", 
+  "SMP_15", "SMP_21", "SMP_100", "SMP_102", "SMP_112", "SMP_121", 
+  "SMP_133", "SMP_18", "SMP_127", "SMP_26", "SMP_99", "SMP_135", 
+  "SMP_157", "SMP_137", "SMP_146", "SMP_164", "SMP_169", "SMP_215", 
+  "SMP_186", "SMP_188"
+)
+
+# Natural resources (NR) to analyze
+nr_elements <- c("Zn_DIV_Ca", "Sr_DIV_Ca", "Ba_DIV_Ca", "Pb_DIV_Ca")
+
+# Base folder for saving plots
+base_folder <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother_NEW/"
+
+# Loop through each dataset (whale)
+for (whale_id in datasets) {
+  
+  # Filter data for the current whale
+  whale_data <- merged_data_NEW %>%
+    filter(whale_index == whale_id) %>%
+    select(whale_index, all_of(nr_elements))
+  
+  # Add row number and artificial millimeter column
+  whale_data$row_number <- seq(1, by = 1, length.out = nrow(whale_data))
+  whale_data$millimeters <- seq(0.1, length.out = nrow(whale_data), by = 0.1)
+  
+  # Remove outliers before applying the rolling median smoother
+  whale_data <- remove_outliers(whale_data, nr_elements)
+  
+  # Apply rolling median smoothing
+  whale_data <- smooth_data(whale_data, nr_elements)
+  
+  # Interpolate missing values to fix gaps
+  whale_data <- interpolate_missing(whale_data, nr_elements)
+  
+  # Loop through each NR and create/save plots
+  for (element in nr_elements) {
+    
+    # Define the folder path for the element
+    element_folder <- file.path(base_folder, element)
+    
+    # Create the folder if it does not exist
+    if (!dir.exists(element_folder)) {
+      dir.create(element_folder, recursive = TRUE)
+    }
+    
+    # Create the plot
+    p <- ggplot(whale_data, aes(x = millimeters, y = .data[[element]])) +
+      geom_line() +
+      labs(title = paste(element, "vs Artificial Millimeters for", whale_id),
+           x = "Millimeters",
+           y = element) +
+      theme_bw()
+    
+    print(p)  # Display plot
+    
+    # Save the plot
+    ggsave(filename = file.path(element_folder, paste0(element, "_", whale_id, "_plot.png")), 
+           plot = p, width = 8, height = 6)
+  }
+}
+
+```
+

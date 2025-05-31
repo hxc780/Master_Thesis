@@ -1,0 +1,458 @@
+---
+title: "Untitled"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r}
+# Function to remove outliers using the IQR method
+remove_outliers <- function(df, cols) {
+  outlier_mask <- df %>%
+    select(all_of(cols)) %>%
+    map(~ {
+      Q1 <- quantile(.x, 0.25, na.rm = TRUE)
+      Q3 <- quantile(.x, 0.75, na.rm = TRUE)
+      IQR <- Q3 - Q1
+      (.x >= (Q1 - 1.5 * IQR)) & (.x <= (Q3 + 1.5 * IQR))
+    }) %>%
+    reduce(`&`) # Keep row only if it's NOT an outlier in ANY element column
+  
+  return(df[outlier_mask, ])
+}
+```
+
+
+```{r}
+# Function to apply rolling median smoothing
+smooth_data <- function(df, cols, window_size = 10) {
+  df <- df %>%
+    mutate(across(all_of(cols), ~ rollapply(.x, width = window_size, FUN = median, fill = NA, align = "center")))
+  return(df)
+}
+```
+
+
+
+```{r}
+# Load the data
+data_21 <- merged_data_NEW %>%
+  filter(whale_index == "SMP_21") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, 
+         P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, 
+         Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, 
+         Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+# Add row number column
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+
+# Define element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_21), c("whale_index", "millimeters", "row_number"))
+
+# Remove outliers BEFORE manual row deletions
+data_21 <- smooth_data(data_21, element_columns)
+
+# Remove specific rows (check actual row numbers after outlier removal)
+if (nrow(data_21) >= 1250) data_21 <- data_21[-1250,]
+if (nrow(data_21) >= 1249) data_21 <- data_21[-1249,]
+if (nrow(data_21) >= 1248) data_21 <- data_21[-1248,]
+if (nrow(data_21) >= 2) data_21 <- data_21[-2,]
+if (nrow(data_21) >= 1) data_21 <- data_21[-1,]
+
+# Re-index row numbers after filtering
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+
+# Correct millimeters sequence
+data_21$millimeters <- seq(0.1, length.out=nrow(data_21), by=0.1)
+
+# Loop through each element and create plots
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother/", element)
+  
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  # Create the plot
+  p <- ggplot(data_21, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_21"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # Display plot
+  
+  # Uncomment the line below if you want to save plots
+   ggsave(filename = file.path(folder_path, paste0(element, "_21_plot.png")), plot = p, width = 8, height = 6)
+}
+
+```
+
+
+
+
+```{r}
+# Load the data
+data_100 <- merged_data_NEW %>%
+  filter(whale_index == "SMP_100") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, 
+         P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, 
+         Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, 
+         Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+# Add row number column
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+
+# Define element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_100), c("whale_index", "millimeters", "row_number"))
+
+# Apply outlier removal before manual row deletions
+data_100 <- smooth_data(data_100, element_columns)
+
+# Remove specific rows AFTER outlier removal (if they still exist)
+if (nrow(data_100) >= 1) data_100 <- data_100[-1,]
+
+# Re-index row numbers after filtering
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+
+# Correct millimeters sequence
+data_100$millimeters <- seq(0.1, length.out=nrow(data_100), by=0.1)
+
+# Loop through each element and create plots
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother/", element)
+
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+
+  # Create the plot
+  p <- ggplot(data_100, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_100"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # Display plot
+  
+  # Save the plot in its respective folder
+  #ggsave(filename = file.path(folder_path, paste0(element, "_100_plot.png")), 
+  #       plot = p, width = 8, height = 6)
+}
+```
+
+
+```{r}
+element <- "U_DIV_Ca"
+
+ggplot(data_100, aes(x = millimeters, y = U_DIV_Ca)) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_100"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw() +
+  ylim(NA, 0.0000001)
+```
+
+```{r}
+# Load the data
+data_112 <- merged_data_NEW %>%
+  filter(whale_index == "SMP_112") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, 
+         P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, 
+         Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, 
+         Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+# Add row number column
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+
+# Define element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_112), c("whale_index", "millimeters", "row_number"))
+
+# Apply outlier removal before manual row deletions
+data_112 <- smooth_data(data_112, element_columns)
+
+# Remove specific rows AFTER outlier removal (if they still exist)
+rows_to_remove <- c(1574, 1573, 3, 2, 1)
+rows_to_remove <- rows_to_remove[rows_to_remove <= nrow(data_112)]
+data_112 <- data_112[-rows_to_remove,]
+
+# Re-index row numbers after filtering
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+
+# Correct millimeters sequence
+data_112$millimeters <- seq(0.1, length.out=nrow(data_112), by=0.1)
+
+# Loop through each element and create plots
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother/", element)
+  
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  # Create the plot
+  p <- ggplot(data_112, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_112"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # Display plot
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_112_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+
+```
+
+```{r}
+element <- "U_DIV_Ca"
+
+ggplot(data_100, aes(x = millimeters, y = U_DIV_Ca)) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_112"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw() +
+  ylim(NA, 0.0000001)
+```
+
+
+```{r}
+# Load the data
+data_210101 <- merged_data_NEW %>%
+  filter(whale_index == "SMP_210101") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, 
+         P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, 
+         Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, 
+         Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+# Add row number column
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+
+# Define element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_210101), c("whale_index", "millimeters", "row_number"))
+
+# Apply outlier removal before manual row deletions
+data_210101 <- smooth_data(data_210101, element_columns)
+
+# Remove specific rows AFTER outlier removal (if they still exist)
+rows_to_remove <- c(1568, 1567, 1566, 2, 1)
+rows_to_remove <- rows_to_remove[rows_to_remove <= nrow(data_210101)]
+data_210101 <- data_210101[-rows_to_remove,]
+
+# Re-index row numbers after filtering
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+
+# Correct millimeters sequence
+data_210101$millimeters <- seq(0.1, length.out=nrow(data_210101), by=0.1)
+
+# Loop through each element and create plots
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother/", element)
+  
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  # Create the plot
+  p <- ggplot(data_210101, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210101"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # Display plot
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_210101_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+
+```
+
+```{r}
+element <- "U_DIV_Ca"
+
+ggplot(data_100, aes(x = millimeters, y = U_DIV_Ca)) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210101"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw() +
+  ylim(NA, 0.00000005)
+```
+
+
+```{r}
+# Load the data
+data_210106 <- merged_data_NEW %>%
+  filter(whale_index == "SMP_210106") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, 
+         P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, 
+         Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, 
+         Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+# Add row number column
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+
+# Define element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_210106), c("whale_index", "millimeters", "row_number"))
+
+# Apply outlier removal before manual row deletions
+data_210106 <- smooth_data(data_210106, element_columns)
+
+# Remove specific rows AFTER outlier removal (if they still exist)
+rows_to_remove <- c(1460, 1459, 2, 1)
+rows_to_remove <- rows_to_remove[rows_to_remove <= nrow(data_210106)]
+data_210106 <- data_210106[-rows_to_remove,]
+
+# Re-index row numbers after filtering
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+
+# Correct millimeters sequence
+data_210106$millimeters <- seq(0.1, length.out=nrow(data_210106), by=0.1)
+
+# Loop through each element and create plots
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother/", element)
+  
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  # Create the plot
+  p <- ggplot(data_210106, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210106"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # Display plot
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_210106_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+
+```
+
+```{r}
+element <- "U_DIV_Ca"
+
+ggplot(data_100, aes(x = millimeters, y = U_DIV_Ca)) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210106"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw() +
+  ylim(NA, 0.0000001)
+```
+
+
+
+```{r}
+# Load the data
+data_210110 <- merged_data_NEW %>%
+  filter(whale_index == "SMP_210110") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, 
+         P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, 
+         Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, 
+         Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+# Add row number column
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+
+# Define element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_210110), c("whale_index", "millimeters", "row_number"))
+
+# Apply outlier removal before manual row deletions
+data_210110 <- smooth_data(data_210110, element_columns)
+
+# Remove specific rows AFTER outlier removal (if they still exist)
+rows_to_remove <- c(1810, 1809, 1808, 2, 1)
+rows_to_remove <- rows_to_remove[rows_to_remove <= nrow(data_210110)]
+data_210110 <- data_210110[-rows_to_remove,]
+
+# Re-index row numbers after filtering
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+
+# Correct millimeters sequence
+data_210110$millimeters <- seq(0.1, length.out=nrow(data_210110), by=0.1)
+
+# Loop through each element and create plots
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Grundstoffer/Rolling_median_smoother/", element)
+  
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  # Create the plot
+  p <- ggplot(data_210110, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210110"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # Display plot
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_210110_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+```
+
+
+```{r}
+element <- "U_DIV_Ca"
+
+ggplot(data_100, aes(x = millimeters, y = U_DIV_Ca)) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210110"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw() +
+  ylim(NA, 0.000000075)
+```
+
+

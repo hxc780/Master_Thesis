@@ -1,0 +1,82 @@
+---
+title: "Plots showing yearly vs seasonal componants"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Sequence of x values representing time (e.g., months)
+x <- seq(0, 10 * pi, length.out = 1000)  # ~5 annual cycles
+
+# Define the signal: sum of two sine/cosine components
+signal <- 0.5 * sin(x) + cos(2 * x + pi)
+
+# Plot the signal
+plot(x, signal, type = "l", lwd = 2, col = "black",
+     xlab = "", ylab = "", axes = FALSE)
+
+# Add a legend
+legend(x = 6, y = 2.2,
+       legend = expression(A * sin(g(x, theta) + b) - B(x) * cos(2 * g(x, theta) + 2 * b)),
+       lty = 1, lwd = 2, bty = "n", xpd= TRUE)
+
+```
+
+
+```{r}
+# Sequence of x values representing time (e.g., months)
+x <- seq(0, 10 * pi, length.out = 1000)  # ~5 annual cycles
+
+# Define the signal: sum of two sine/cosine components
+signal <- 0.5 * sin(x+3*pi/2)
+
+# Plot the signal
+plot(x, signal, type = "l", lwd = 2, col = "black",
+     xlab = "", ylab = "", axes = FALSE)
+
+# Add a legend
+legend(x = 10, y = 0.75,
+       legend = expression(A * sin(g(x, theta) + b)),
+       lty = 1, lwd = 2, bty = "n", xpd= TRUE)
+
+```
+
+
+
+```{r}
+# Load necessary packages
+library(ggplot2)
+library(readr)
+
+t <- seq(0, 1, length.out = 1000)
+amplitude <- 1 + 0.5 * sin(2 * pi * 2 * t)  # Slowly varying amplitude
+signal <- amplitude * sin(2 * pi * 15 * t)  # Carrier sine wave
+
+# Compute the analytic signal and the envelope
+analytic_signal <- gsignal::hilbert(signal)
+envelope <- abs(analytic_signal)
+
+# Read the data
+df <- data.frame(time = t, signal = signal, envelope = envelope)
+
+# Plot the signal and envelope
+ggplot(df, aes(x = time)) +
+  geom_line(aes(y = signal, color = "Signal"), size = 0.8) +
+  geom_line(aes(y = envelope, color = "Envelope"), size = 0.8) +
+  scale_color_manual(values = c("Signal" = "black", "Envelope" = "red")) +
+  labs(y = NULL, x = NULL, color = NULL) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    legend.position = "bottom"
+  )
+
+```
+

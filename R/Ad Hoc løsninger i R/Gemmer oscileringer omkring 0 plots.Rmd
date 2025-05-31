@@ -1,0 +1,2767 @@
+---
+title: "Removing_outliers"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We are going to remove the outliers for all whales. We use the already plotted pointplots. 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(dplyr)
+```
+
+
+# loding in the data
+```{r}
+merged_data_NEW <- read_csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/merged_data_NEW.csv")
+```
+
+
+
+For the outliers that have another outlier as a neighbor we are going to do linear interpolation. If the first and last observation is an outlier I am going to do linear interpolation based on the two nearest "non-outlier" observations that are infront/behind the first/last observation. 
+
+# ############################### 15 ####################################
+```{r}
+data_15 <-merged_data_NEW %>%
+    filter(whale_index == "SMP_15") %>%
+    select(whale_index, Ba_DIV_Ca)
+
+data_15$row_number <- seq(1, by=1, length.out=nrow(data_15))
+
+subset(data_15, Ba_DIV_Ca > 0.002)
+subset(data_15, Ba_DIV_Ca < 0.00)
+```
+
+
+```{r}
+data_15$Ba_DIV_Ca[1424] <- data_15$Ba_DIV_Ca[1423] + 1 * (data_15$Ba_DIV_Ca[1430] - data_15$Ba_DIV_Ca[1423]) / 7
+data_15$Ba_DIV_Ca[1425] <- data_15$Ba_DIV_Ca[1423] + 2 * (data_15$Ba_DIV_Ca[1430] - data_15$Ba_DIV_Ca[1423]) / 7
+data_15$Ba_DIV_Ca[1426] <- data_15$Ba_DIV_Ca[1423] + 3 * (data_15$Ba_DIV_Ca[1430] - data_15$Ba_DIV_Ca[1423]) / 7
+data_15$Ba_DIV_Ca[1427] <- data_15$Ba_DIV_Ca[1423] + 4 * (data_15$Ba_DIV_Ca[1430] - data_15$Ba_DIV_Ca[1423]) / 7
+data_15$Ba_DIV_Ca[1428] <- data_15$Ba_DIV_Ca[1423] + 5 * (data_15$Ba_DIV_Ca[1430] - data_15$Ba_DIV_Ca[1423]) / 7
+data_15$Ba_DIV_Ca[1429] <- data_15$Ba_DIV_Ca[1423] + 6 * (data_15$Ba_DIV_Ca[1430] - data_15$Ba_DIV_Ca[1423]) / 7
+data_15$Ba_DIV_Ca[2724]    <- (data_15$Ba_DIV_Ca[2723] + data_15$Ba_DIV_Ca[2725]) / 2
+
+data_15 <- data_15[-1,]
+data_15$row_number <- seq(1, by=1, length.out=nrow(data_15))
+```
+
+I do a point plot, to see if I have captured all the outliers. I have have not I go back and add more to the above code until I am satisfied. 
+
+```{r}
+data_15$millimeters <- seq(0.1, by=nrow(data_15)/10000, length.out=nrow(data_15))
+
+ggplot(data_15, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+I then go and fit the trend, remove the trend, divide by sd and then save the dataset, such that it can be ready to fit in the FitModel script. 
+
+```{r}
+trend_15 <- loess(data_15$Ba_DIV_Ca ~ data_15$millimeters)
+trend1_15 <- data.frame(trend_15 = trend_15$fitted, millimeters = data_15$millimeters)
+
+ggplot(data_15, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_15, aes(y= trend_15), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+When I see that the trend looks fine I create my last dataset: 
+```{r}
+# subtracting the trend
+data_15$no_trend <- data_15$Ba_DIV_Ca - trend1_15$trend_15
+
+# dividing the new timeseries with the sd(timeserie)
+data_15$nt_sd <- data_15$no_trend/sd(data_15$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_15, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_15",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/15.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# ############################### 18 ####################################
+```{r}
+data_18 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_18") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_18$row_number <- seq(1, by=1, length.out=nrow(data_18))
+
+subset(data_18, Ba_DIV_Ca > 0.002)
+subset(data_18, Ba_DIV_Ca < 0.00)
+```
+
+
+```{r}
+data_18 <- data_18[-1508,]
+data_18 <- data_18[-3,]
+data_18 <- data_18[-2,]
+data_18 <- data_18[-1,]
+
+data_18$row_number <- seq(1, by=1, length.out=nrow(data_18))
+```
+
+
+```{r}
+data_18$millimeters <- seq(0.1, by=nrow(data_18)/10000, length.out=nrow(data_18))
+
+ggplot(data_18, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_18"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+
+```{r}
+trend_18 <- loess(data_18$Ba_DIV_Ca ~ data_18$millimeters)
+trend1_18 <- data.frame(trend_18 = trend_18$fitted, millimeters = data_18$millimeters)
+
+ggplot(data_18, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_18, aes(y= trend_18), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_18",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_18$no_trend <- data_18$Ba_DIV_Ca - trend1_18$trend_18
+
+# dividing the new timeseries with the sd(timeserie)
+data_18$nt_sd <- data_18$no_trend/sd(data_18$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_18, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_18",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/18.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 21 ####################################
+```{r}
+data_21 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_21") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+
+subset(data_21, Ba_DIV_Ca > 0.0014)
+subset(data_21, Ba_DIV_Ca < 0.00)
+
+```
+
+
+```{r}
+data_21 <- data_21[-1250,]
+data_21 <- data_21[-1249,]
+data_21 <- data_21[-1248,]
+data_21 <- data_21[-2,]
+data_21 <- data_21[-1,]
+
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+```
+
+
+```{r}
+data_21$millimeters <- seq(0.1, by=nrow(data_21)/10000, length.out=nrow(data_21))
+
+ggplot(data_21, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_21"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_21 <- loess(data_21$Ba_DIV_Ca ~ data_21$millimeters)
+trend1_21 <- data.frame(trend_21 = trend_21$fitted, millimeters = data_21$millimeters)
+
+ggplot(data_21, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_21, aes(y= trend_21), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_21",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+```
+
+```{r}
+# subtracting the trend
+data_21$no_trend <- data_21$Ba_DIV_Ca - trend1_21$trend_21
+
+# dividing the new timeseries with the sd(timeserie)
+data_21$nt_sd <- data_21$no_trend/sd(data_21$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_21, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_21",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/21.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# ############################### 26 ####################################
+```{r}
+data_26 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_26") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_26$row_number <- seq(1, by=1, length.out=nrow(data_26))
+
+subset(data_26, Ba_DIV_Ca > 0.002)
+subset(data_26, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_26 <- data_26[-1731,]
+data_26 <- data_26[-3,]
+data_26 <- data_26[-2,]
+data_26 <- data_26[-1,]
+
+data_26$row_number <- seq(1, by=1, length.out=nrow(data_26))
+```
+
+
+```{r}
+data_26$millimeters <- seq(0.1, by=nrow(data_26)/10000, length.out=nrow(data_26))
+
+ggplot(data_26, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_26"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_26 <- loess(data_26$Ba_DIV_Ca ~ data_26$millimeters)
+trend1_26 <- data.frame(trend_26 = trend_26$fitted, millimeters = data_26$millimeters)
+
+ggplot(data_26, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_26, aes(y= trend_26), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_26",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_26$no_trend <- data_26$Ba_DIV_Ca - trend1_26$trend_26
+
+# dividing the new timeseries with the sd(timeserie)
+data_26$nt_sd <- data_26$no_trend/sd(data_26$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_26, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_26",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/26.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 99 ####################################
+```{r}
+data_99 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_99") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_99$row_number <- seq(1, by=1, length.out=nrow(data_99))
+
+subset(data_99, Ba_DIV_Ca > 0.002)
+subset(data_99, Ba_DIV_Ca < 0.0003)
+
+```
+
+```{r}
+data_99 <- data_99[-1437,]
+data_99 <- data_99[-1436,]
+data_99 <- data_99[-1435,]
+data_99 <- data_99[-2,]
+data_99 <- data_99[-1,]
+
+data_99$row_number <- seq(1, by=1, length.out=nrow(data_99))
+```
+
+
+```{r}
+data_99$millimeters <- seq(0.1, by=nrow(data_99)/10000, length.out=nrow(data_99))
+
+ggplot(data_99, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_99"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_99 <- loess(data_99$Ba_DIV_Ca ~ data_99$millimeters)
+trend1_99 <- data.frame(trend_99 = trend_99$fitted, millimeters = data_99$millimeters)
+
+ggplot(data_99, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_99, aes(y= trend_99), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_99",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_99$no_trend <- data_99$Ba_DIV_Ca - trend1_99$trend_99
+
+# dividing the new timeseries with the sd(timeserie)
+data_99$nt_sd <- data_99$no_trend/sd(data_99$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_99, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_99",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/99.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 100 ####################################
+```{r}
+data_100 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_100") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+
+subset(data_100, Ba_DIV_Ca > 0.002)
+subset(data_100, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_100 <- data_100[-1,]
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+```
+
+
+```{r}
+data_100$millimeters <- seq(0.1, by=nrow(data_100)/10000, length.out=nrow(data_100))
+
+ggplot(data_100, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_100"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_100 <- loess(data_100$Ba_DIV_Ca ~ data_100$millimeters)
+trend1_100 <- data.frame(trend_100 = trend_100$fitted, millimeters = data_100$millimeters)
+
+ggplot(data_100, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_100, aes(y= trend_100), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_100",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_100$no_trend <- data_100$Ba_DIV_Ca - trend1_100$trend_100
+
+# dividing the new timeseries with the sd(timeserie)
+data_100$nt_sd <- data_100$no_trend/sd(data_100$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_100, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_100",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/100.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 102 ####################################
+```{r}
+data_102 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_102") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_102$row_number <- seq(1, by=1, length.out=nrow(data_102))
+
+subset(data_102, Ba_DIV_Ca > 0.002)
+subset(data_102, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_102 <- data_102[-1543,]
+data_102 <- data_102[-1542,]
+data_102 <- data_102[-1541,]
+data_102 <- data_102[-3,]
+data_102 <- data_102[-2,]
+data_102 <- data_102[-1,]
+
+data_102$row_number <- seq(1, by=1, length.out=nrow(data_102))
+```
+
+
+```{r}
+data_102$millimeters <- seq(0.1, by=nrow(data_102)/10000, length.out=nrow(data_102))
+
+ggplot(data_102, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_102"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_102 <- loess(data_102$Ba_DIV_Ca ~ data_102$millimeters)
+trend1_102 <- data.frame(trend_102 = trend_102$fitted, millimeters = data_102$millimeters)
+
+ggplot(data_102, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_102, aes(y= trend_102), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_102",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_102$no_trend <- data_102$Ba_DIV_Ca - trend1_102$trend_102
+
+# dividing the new timeseries with the sd(timeserie)
+data_102$nt_sd <- data_102$no_trend/sd(data_102$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_102, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_102",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/102.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# ############################### 112 ####################################
+```{r}
+data_112 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_112") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+
+subset(data_112, Ba_DIV_Ca > 0.002)
+subset(data_112, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_112 <- data_112[-1574,]
+data_112 <- data_112[-1573,]
+data_112 <- data_112[-3,]
+data_112 <- data_112[-2,]
+data_112 <- data_112[-1,]
+
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+```
+
+
+```{r}
+data_112$millimeters <- seq(0.1, by=nrow(data_112)/10000, length.out=nrow(data_112))
+
+ggplot(data_112, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_112"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_112 <- loess(data_112$Ba_DIV_Ca ~ data_112$millimeters)
+trend1_112 <- data.frame(trend_112 = trend_112$fitted, millimeters = data_112$millimeters)
+
+ggplot(data_112, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_112, aes(y= trend_112), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_112",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_112$no_trend <- data_112$Ba_DIV_Ca - trend1_112$trend_112
+
+# dividing the new timeseries with the sd(timeserie)
+data_112$nt_sd <- data_112$no_trend/sd(data_112$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_112, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_112",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/112.png"), 
+         plot = p, width = 8, height = 6)
+
+```
+
+
+# ############################### 121 ####################################
+```{r}
+data_121 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_121") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_121$row_number <- seq(1, by=1, length.out=nrow(data_121))
+
+subset(data_121, Ba_DIV_Ca > 0.002)
+subset(data_121, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_121 <- data_121[-1257,]
+data_121 <- data_121[-1256,]
+data_121 <- data_121[-2,]
+data_121 <- data_121[-1,]
+
+data_121$row_number <- seq(1, by=1, length.out=nrow(data_121))
+```
+
+
+```{r}
+data_121$millimeters <- seq(0.1, by=nrow(data_121)/10000, length.out=nrow(data_121))
+
+ggplot(data_121, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_121"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_121 <- loess(data_121$Ba_DIV_Ca ~ data_121$millimeters)
+trend1_121 <- data.frame(trend_121 = trend_121$fitted, millimeters = data_121$millimeters)
+
+ggplot(data_121, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_121, aes(y= trend_121), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_121",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_121$no_trend <- data_121$Ba_DIV_Ca - trend1_121$trend_121
+
+# dividing the new timeseries with the sd(timeserie)
+data_121$nt_sd <- data_121$no_trend/sd(data_121$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_121, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_121",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/121.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# ############################### 127 ####################################
+```{r}
+data_127 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_127") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_127$row_number <- seq(1, by=1, length.out=nrow(data_127))
+
+subset(data_127, Ba_DIV_Ca > 0.002)
+subset(data_127, Ba_DIV_Ca < 0.000375)
+
+```
+
+```{r}
+data_127$Ba_DIV_Ca[437]    <- data_127$Ba_DIV_Ca[436] + 1 * (data_127$Ba_DIV_Ca[441] - data_127$Ba_DIV_Ca[436]) / 5
+data_127$Ba_DIV_Ca[438]    <- data_127$Ba_DIV_Ca[436] + 2 * (data_127$Ba_DIV_Ca[441] - data_127$Ba_DIV_Ca[436]) / 5
+data_127$Ba_DIV_Ca[439]    <- data_127$Ba_DIV_Ca[436] + 3 * (data_127$Ba_DIV_Ca[441] - data_127$Ba_DIV_Ca[436]) / 5
+data_127$Ba_DIV_Ca[440]    <- data_127$Ba_DIV_Ca[436] + 4 * (data_127$Ba_DIV_Ca[441] - data_127$Ba_DIV_Ca[436]) / 5
+data_127$Ba_DIV_Ca[110]    <- (data_127$Ba_DIV_Ca[109] + data_127$Ba_DIV_Ca[111]) / 2
+```
+
+
+```{r}
+data_127$millimeters <- seq(0.1, by=nrow(data_127)/10000, length.out=nrow(data_127))
+
+ggplot(data_127, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_127"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_127 <- loess(data_127$Ba_DIV_Ca ~ data_127$millimeters)
+trend1_127 <- data.frame(trend_127 = trend_127$fitted, millimeters = data_127$millimeters)
+
+ggplot(data_127, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_127, aes(y= trend_127), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_127",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_127$no_trend <- data_127$Ba_DIV_Ca - trend1_127$trend_127
+
+# dividing the new timeseries with the sd(timeserie)
+data_127$nt_sd <- data_127$no_trend/sd(data_127$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_127, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_127",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/127.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 133 ####################################
+```{r}
+data_133 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_133") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_133$row_number <- seq(1, by=1, length.out=nrow(data_133))
+
+subset(data_133, Ba_DIV_Ca > 0.002)
+subset(data_133, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_133 <- data_133[-1,]
+
+data_133$row_number <- seq(1, by=1, length.out=nrow(data_133))
+```
+
+
+```{r}
+data_133$millimeters <- seq(0.1, by=nrow(data_133)/10000, length.out=nrow(data_133))
+
+ggplot(data_133, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_133"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_133 <- loess(data_133$Ba_DIV_Ca ~ data_133$millimeters)
+trend1_133 <- data.frame(trend_133 = trend_133$fitted, millimeters = data_133$millimeters)
+
+ggplot(data_133, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_133, aes(y= trend_133), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_133",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_133$no_trend <- data_133$Ba_DIV_Ca - trend1_133$trend_133
+
+# dividing the new timeseries with the sd(timeserie)
+data_133$nt_sd <- data_133$no_trend/sd(data_133$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_133, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_133",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/133.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# ############################### 135 ####################################
+```{r}
+data_135 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_135") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_135$row_number <- seq(1, by=1, length.out=nrow(data_135))
+
+subset(data_135, Ba_DIV_Ca > 0.00225)
+subset(data_135, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_135 <- data_135[-1911,]
+data_135 <- data_135[-1910,]
+data_135 <- data_135[-1909,]
+data_135 <- data_135[-3,]
+data_135 <- data_135[-2,]
+data_135 <- data_135[-1,]
+
+data_135$row_number <- seq(1, by=1, length.out=nrow(data_135))
+```
+
+
+```{r}
+data_135$millimeters <- seq(0.1, by=nrow(data_135)/10000, length.out=nrow(data_135))
+
+ggplot(data_135, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_135"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_135 <- loess(data_135$Ba_DIV_Ca ~ data_135$millimeters)
+trend1_135 <- data.frame(trend_135 = trend_135$fitted, millimeters = data_135$millimeters)
+
+ggplot(data_135, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_135, aes(y= trend_135), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_135",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_135$no_trend <- data_135$Ba_DIV_Ca - trend1_135$trend_135
+
+# dividing the new timeseries with the sd(timeserie)
+data_135$nt_sd <- data_135$no_trend/sd(data_135$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_135, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_135",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/135.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 137 ####################################
+```{r}
+data_137 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_137") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_137$row_number <- seq(1, by=1, length.out=nrow(data_137))
+
+subset(data_137, Ba_DIV_Ca > 0.002)
+subset(data_137, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_137 <- data_137[-1640,]
+data_137 <- data_137[-1639,]
+data_137 <- data_137[-3,]
+data_137 <- data_137[-2,]
+data_137 <- data_137[-1,]
+
+data_137$row_number <- seq(1, by=1, length.out=nrow(data_137))
+```
+
+
+```{r}
+data_137$millimeters <- seq(0.1, by=nrow(data_137)/10000, length.out=nrow(data_137))
+
+ggplot(data_137, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_137"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_137 <- loess(data_137$Ba_DIV_Ca ~ data_137$millimeters)
+trend1_137 <- data.frame(trend_137 = trend_137$fitted, millimeters = data_137$millimeters)
+
+ggplot(data_137, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_137, aes(y= trend_137), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_137",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_137$no_trend <- data_137$Ba_DIV_Ca - trend1_137$trend_137
+
+# dividing the new timeseries with the sd(timeserie)
+data_137$nt_sd <- data_137$no_trend/sd(data_137$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_137, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_137",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/137.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 146 ####################################
+```{r}
+data_146 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_146") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_146$row_number <- seq(1, by=1, length.out=nrow(data_146))
+
+subset(data_146, Ba_DIV_Ca > 0.00125)
+subset(data_146, Ba_DIV_Ca < 0.0004)
+
+```
+
+```{r}
+data_146$Ba_DIV_Ca[450]    <- (data_146$Ba_DIV_Ca[451] + data_146$Ba_DIV_Ca[449]) / 2
+
+data_146 <- data_146[-1528,]
+data_146 <- data_146[-4,]
+data_146 <- data_146[-3,]
+data_146 <- data_146[-2,]
+data_146 <- data_146[-1,]
+
+
+data_146$row_number <- seq(1, by=1, length.out=nrow(data_146))
+
+# If the last part is outliers, we can remove them by this:
+#data_146 <- data_146[1:1508, ]
+```
+
+
+```{r}
+data_146$millimeters <- seq(0.1, by=nrow(data_146)/10000, length.out=nrow(data_146))
+
+ggplot(data_146, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_146"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_146 <- loess(data_146$Ba_DIV_Ca ~ data_146$millimeters)
+trend1_146 <- data.frame(trend_146 = trend_146$fitted, millimeters = data_146$millimeters)
+
+ggplot(data_146, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_146, aes(y= trend_146), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_146",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_146$no_trend <- data_146$Ba_DIV_Ca - trend1_146$trend_146
+
+# dividing the new timeseries with the sd(timeserie)
+data_146$nt_sd <- data_146$no_trend/sd(data_146$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_146, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_146",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/146.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 157 ####################################
+```{r}
+data_157 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_157") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_157$row_number <- seq(1, by=1, length.out=nrow(data_157))
+
+subset(data_157, Ba_DIV_Ca > 0.002)
+subset(data_157, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_157 <- data_157[-1257,]
+data_157 <- data_157[-1256,]
+data_157 <- data_157[-1,]
+
+data_157$row_number <- seq(1, by=1, length.out=nrow(data_157))
+```
+
+
+```{r}
+data_157$millimeters <- seq(0.1, by=nrow(data_157)/10000, length.out=nrow(data_157))
+
+ggplot(data_157, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_157"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_157 <- loess(data_157$Ba_DIV_Ca ~ data_157$millimeters)
+trend1_157 <- data.frame(trend_157 = trend_157$fitted, millimeters = data_157$millimeters)
+
+ggplot(data_157, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_157, aes(y= trend_157), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_157",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_157$no_trend <- data_157$Ba_DIV_Ca - trend1_157$trend_157
+
+# dividing the new timeseries with the sd(timeserie)
+data_157$nt_sd <- data_157$no_trend/sd(data_157$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_157, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_157",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/157.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 164 ####################################
+```{r}
+data_164 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_164") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_164$row_number <- seq(1, by=1, length.out=nrow(data_164))
+
+subset(data_164, Ba_DIV_Ca > 0.002)
+subset(data_164, Ba_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_164$Ba_DIV_Ca[31]    <- (data_164$Ba_DIV_Ca[30] + data_164$Ba_DIV_Ca[32]) / 2
+data_164$Ba_DIV_Ca[44]    <- data_164$Ba_DIV_Ca[43] + 1 * (data_164$Ba_DIV_Ca[47] - data_164$Ba_DIV_Ca[43]) / 4
+data_164$Ba_DIV_Ca[45]    <- data_164$Ba_DIV_Ca[43] + 2 * (data_164$Ba_DIV_Ca[47] - data_164$Ba_DIV_Ca[43]) / 4
+data_164$Ba_DIV_Ca[46]    <- data_164$Ba_DIV_Ca[43] + 3 * (data_164$Ba_DIV_Ca[47] - data_164$Ba_DIV_Ca[43]) / 4
+
+data_164 <- data_164[-3,]
+data_164 <- data_164[-2,]
+data_164 <- data_164[-1,]
+
+
+data_164$row_number <- seq(1, by=1, length.out=nrow(data_164))
+```
+
+
+```{r}
+data_164$millimeters <- seq(0.1, by=nrow(data_164)/10000, length.out=nrow(data_164))
+
+ggplot(data_164, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_164"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_164 <- loess(data_164$Ba_DIV_Ca ~ data_164$millimeters)
+trend1_164 <- data.frame(trend_164 = trend_164$fitted, millimeters = data_164$millimeters)
+
+ggplot(data_164, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_164, aes(y= trend_164), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_164",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_164$no_trend <- data_164$Ba_DIV_Ca - trend1_164$trend_164
+
+# dividing the new timeseries with the sd(timeserie)
+data_164$nt_sd <- data_164$no_trend/sd(data_164$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_164, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_164",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/164.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 169 ####################################
+```{r}
+data_169 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_169") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_169$row_number <- seq(1, by=1, length.out=nrow(data_169))
+
+subset(data_169, Ba_DIV_Ca > 0.0023)
+subset(data_169, Ba_DIV_Ca < 0.0005)
+
+```
+
+```{r}
+data_169 <- data_169[-1527,]
+data_169 <- data_169[-1526,]
+data_169 <- data_169[-1525,]
+data_169 <- data_169[-2,]
+data_169 <- data_169[-1,]
+
+data_169$row_number <- seq(1, by=1, length.out=nrow(data_169))
+```
+
+
+```{r}
+data_169$millimeters <- seq(0.1, by=nrow(data_169)/10000, length.out=nrow(data_169))
+
+ggplot(data_169, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_169"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_169 <- loess(data_169$Ba_DIV_Ca ~ data_169$millimeters)
+trend1_169 <- data.frame(trend_169 = trend_169$fitted, millimeters = data_169$millimeters)
+
+ggplot(data_169, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_169, aes(y= trend_169), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_169",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_169$no_trend <- data_169$Ba_DIV_Ca - trend1_169$trend_169
+
+# dividing the new timeseries with the sd(timeserie)
+data_169$nt_sd <- data_169$no_trend/sd(data_169$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_169, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_169",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/169.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 186 ####################################
+```{r}
+data_186 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_186") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_186$row_number <- seq(1, by=1, length.out=nrow(data_186))
+
+subset(data_186, Ba_DIV_Ca > 0.002)
+subset(data_186, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_186 <- data_186[-2066,]
+data_186 <- data_186[-2065,]
+data_186 <- data_186[-2064,]
+data_186 <- data_186[-3,]
+data_186 <- data_186[-2,]
+data_186 <- data_186[-1,]
+
+data_186$row_number <- seq(1, by=1, length.out=nrow(data_186))
+```
+
+
+```{r}
+data_186$millimeters <- seq(0.1, by=nrow(data_186)/10000, length.out=nrow(data_186))
+
+ggplot(data_186, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_186"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_186 <- loess(data_186$Ba_DIV_Ca ~ data_186$millimeters)
+trend1_186 <- data.frame(trend_186 = trend_186$fitted, millimeters = data_186$millimeters)
+
+ggplot(data_186, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_186, aes(y= trend_186), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_186",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_186$no_trend <- data_186$Ba_DIV_Ca - trend1_186$trend_186
+
+# dividing the new timeseries with the sd(timeserie)
+data_186$nt_sd <- data_186$no_trend/sd(data_186$no_trend)
+
+# see if they oscillate around 0
+p<- ggplot(data_186, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_186",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/186.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 188 ####################################
+```{r}
+data_188 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_188") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_188$row_number <- seq(1, by=1, length.out=nrow(data_188))
+
+subset(data_188, Ba_DIV_Ca > 0.002)
+subset(data_188, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_188$Ba_DIV_Ca[3]    <- (data_188$Ba_DIV_Ca[2] + data_188$Ba_DIV_Ca[4]) / 2
+
+data_188 <- data_188[-1530,]
+data_188 <- data_188[-1529,]
+data_188 <- data_188[-1528,]
+data_188 <- data_188[-1,]
+
+data_188$row_number <- seq(1, by=1, length.out=nrow(data_188))
+```
+
+
+```{r}
+data_188$millimeters <- seq(0.1, by=nrow(data_188)/10000, length.out=nrow(data_188))
+
+ggplot(data_188, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_188"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_188 <- loess(data_188$Ba_DIV_Ca ~ data_188$millimeters)
+trend1_188 <- data.frame(trend_188 = trend_188$fitted, millimeters = data_188$millimeters)
+
+ggplot(data_188, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_188, aes(y= trend_188), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_188",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_188$no_trend <- data_188$Ba_DIV_Ca - trend1_188$trend_188
+
+# dividing the new timeseries with the sd(timeserie)
+data_188$nt_sd <- data_188$no_trend/sd(data_188$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_188, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_188",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/188.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 215 ####################################
+```{r}
+data_215 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_215") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_215$row_number <- seq(1, by=1, length.out=nrow(data_215))
+
+subset(data_215, Ba_DIV_Ca > 0.002)
+subset(data_215, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_215 <- data_215[-1545,]
+data_215 <- data_215[-1543,]
+data_215 <- data_215[-1542,]
+data_215 <- data_215[-3,]
+data_215 <- data_215[-2,]
+data_215 <- data_215[-1,]
+
+data_215$row_number <- seq(1, by=1, length.out=nrow(data_215))
+```
+
+
+```{r}
+data_215$millimeters <- seq(0.1, by=nrow(data_215)/10000, length.out=nrow(data_215))
+
+ggplot(data_215, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_215"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_215 <- loess(data_215$Ba_DIV_Ca ~ data_215$millimeters)
+trend1_215 <- data.frame(trend_215 = trend_215$fitted, millimeters = data_215$millimeters)
+
+ggplot(data_215, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_215, aes(y= trend_215), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_215",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_215$no_trend <- data_215$Ba_DIV_Ca - trend1_215$trend_215
+
+# dividing the new timeseries with the sd(timeserie)
+data_215$nt_sd <- data_215$no_trend/sd(data_215$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_215, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_215",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/215.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210101 ####################################
+```{r}
+data_210101 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210101") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+
+subset(data_210101, Ba_DIV_Ca > 0.002)
+subset(data_210101, Ba_DIV_Ca < 0.00025)
+```
+
+```{r}
+data_210101 <- data_210101[-1568,]
+data_210101 <- data_210101[-1567,]
+data_210101 <- data_210101[-1566,]
+data_210101 <- data_210101[-2,]
+data_210101 <- data_210101[-1,]
+
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+```
+
+
+```{r}
+data_210101$millimeters <- seq(0.1, by=nrow(data_210101)/10000, length.out=nrow(data_210101))
+
+ggplot(data_210101, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210101"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210101 <- loess(data_210101$Ba_DIV_Ca ~ data_210101$millimeters)
+trend1_210101 <- data.frame(trend_210101 = trend_210101$fitted, millimeters = data_210101$millimeters)
+
+ggplot(data_210101, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210101, aes(y= trend_210101), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210101",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210101$no_trend <- data_210101$Ba_DIV_Ca - trend1_210101$trend_210101
+
+# dividing the new timeseries with the sd(timeserie)
+data_210101$nt_sd <- data_210101$no_trend/sd(data_210101$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210101, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210101",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210101.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210106 ####################################
+```{r}
+data_210106 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210106") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+
+subset(data_210106, Ba_DIV_Ca > 0.002)
+subset(data_210106, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210106 <- data_210106[-1460,]
+data_210106 <- data_210106[-1459,]
+data_210106 <- data_210106[-2,]
+data_210106 <- data_210106[-1,]
+
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+```
+
+
+```{r}
+data_210106$millimeters <- seq(0.1, by=nrow(data_210106)/10000, length.out=nrow(data_210106))
+
+ggplot(data_210106, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210106"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210106 <- loess(data_210106$Ba_DIV_Ca ~ data_210106$millimeters)
+trend1_210106 <- data.frame(trend_210106 = trend_210106$fitted, millimeters = data_210106$millimeters)
+
+ggplot(data_210106, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210106, aes(y= trend_210106), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210106",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210106$no_trend <- data_210106$Ba_DIV_Ca - trend1_210106$trend_210106
+
+# dividing the new timeseries with the sd(timeserie)
+data_210106$nt_sd <- data_210106$no_trend/sd(data_210106$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210106, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210106",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210106.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210110 ####################################
+```{r}
+data_210110 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210110") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+
+subset(data_210110, Ba_DIV_Ca > 0.002)
+subset(data_210110, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210110 <- data_210110[-1810,]
+data_210110 <- data_210110[-1809,]
+data_210110 <- data_210110[-1808,]
+data_210110 <- data_210110[-2,]
+data_210110 <- data_210110[-1,]
+
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+```
+
+
+```{r}
+data_210110$millimeters <- seq(0.1, by=nrow(data_210110)/10000, length.out=nrow(data_210110))
+
+ggplot(data_210110, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210110"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210110 <- loess(data_210110$Ba_DIV_Ca ~ data_210110$millimeters)
+trend1_210110 <- data.frame(trend_210110 = trend_210110$fitted, millimeters = data_210110$millimeters)
+
+ggplot(data_210110, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210110, aes(y= trend_210110), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210110",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210110$no_trend <- data_210110$Ba_DIV_Ca - trend1_210110$trend_210110
+
+# dividing the new timeseries with the sd(timeserie)
+data_210110$nt_sd <- data_210110$no_trend/sd(data_210110$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210110, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210110",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210110.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210111 ####################################
+```{r}
+data_210111 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210111") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210111$row_number <- seq(1, by=1, length.out=nrow(data_210111))
+
+subset(data_210111, Ba_DIV_Ca > 0.002)
+subset(data_210111, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210111 <- data_210111[-1700,]
+data_210111 <- data_210111[-1699,]
+data_210111 <- data_210111[-1698,]
+data_210111 <- data_210111[-1697,]
+data_210111 <- data_210111[-1696,]
+
+data_210111 <- data_210111[-3,]
+data_210111 <- data_210111[-2,]
+data_210111 <- data_210111[-1,]
+
+
+data_210111$row_number <- seq(1, by=1, length.out=nrow(data_210111))
+```
+
+
+```{r}
+data_210111$millimeters <- seq(0.1, by=nrow(data_210111)/10000, length.out=nrow(data_210111))
+
+ggplot(data_210111, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210111"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210111 <- loess(data_210111$Ba_DIV_Ca ~ data_210111$millimeters)
+trend1_210111 <- data.frame(trend_210111 = trend_210111$fitted, millimeters = data_210111$millimeters)
+
+ggplot(data_210111, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210111, aes(y= trend_210111), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210111",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210111$no_trend <- data_210111$Ba_DIV_Ca - trend1_210111$trend_210111
+
+# dividing the new timeseries with the sd(timeserie)
+data_210111$nt_sd <- data_210111$no_trend/sd(data_210111$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210111, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210111",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+  
+# Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210111.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210113 ####################################
+```{r}
+data_210113 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210113") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210113$row_number <- seq(1, by=1, length.out=nrow(data_210113))
+
+subset(data_210113, Ba_DIV_Ca > 0.002)
+subset(data_210113, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210113 <- data_210113[-1467,]
+data_210113 <- data_210113[-1466,]
+data_210113 <- data_210113[-1465,]
+data_210113 <- data_210113[-2,]
+data_210113 <- data_210113[-1,]
+
+data_210113$row_number <- seq(1, by=1, length.out=nrow(data_210113))
+```
+
+
+```{r}
+data_210113$millimeters <- seq(0.1, by=nrow(data_210113)/10000, length.out=nrow(data_210113))
+
+ggplot(data_210113, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210113"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210113 <- loess(data_210113$Ba_DIV_Ca ~ data_210113$millimeters)
+trend1_210113 <- data.frame(trend_210113 = trend_210113$fitted, millimeters = data_210113$millimeters)
+
+ggplot(data_210113, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210113, aes(y= trend_210113), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210113",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210113$no_trend <- data_210113$Ba_DIV_Ca - trend1_210113$trend_210113
+
+# dividing the new timeseries with the sd(timeserie)
+data_210113$nt_sd <- data_210113$no_trend/sd(data_210113$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210113, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210113",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210113.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210114 ####################################
+```{r}
+data_210114 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210114") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210114$row_number <- seq(1, by=1, length.out=nrow(data_210114))
+
+subset(data_210114, Ba_DIV_Ca > 0.002)
+subset(data_210114, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210114 <- data_210114[-1014,]
+data_210114 <- data_210114[-1013,]
+data_210114 <- data_210114[-1012,]
+data_210114 <- data_210114[-1011,]
+data_210114 <- data_210114[-2,]
+data_210114 <- data_210114[-1,]
+
+data_210114$row_number <- seq(1, by=1, length.out=nrow(data_210114))
+```
+
+
+```{r}
+data_210114$millimeters <- seq(0.1, by=nrow(data_210114)/10000, length.out=nrow(data_210114))
+
+ggplot(data_210114, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210114"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210114 <- loess(data_210114$Ba_DIV_Ca ~ data_210114$millimeters)
+trend1_210114 <- data.frame(trend_210114 = trend_210114$fitted, millimeters = data_210114$millimeters)
+
+ggplot(data_210114, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210114, aes(y= trend_210114), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210114",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210114$no_trend <- data_210114$Ba_DIV_Ca - trend1_210114$trend_210114
+
+# dividing the new timeseries with the sd(timeserie)
+data_210114$nt_sd <- data_210114$no_trend/sd(data_210114$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210114, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210114",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210114.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210122 ####################################
+```{r}
+data_210122 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210122") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210122$row_number <- seq(1, by=1, length.out=nrow(data_210122))
+
+subset(data_210122, Ba_DIV_Ca > 0.002)
+subset(data_210122, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210122 <- data_210122[-1463,]
+data_210122 <- data_210122[-1462,]
+data_210122 <- data_210122[-1461,]
+data_210122 <- data_210122[-2,]
+data_210122 <- data_210122[-1,]
+
+data_210122$row_number <- seq(1, by=1, length.out=nrow(data_210122))
+```
+
+
+```{r}
+data_210122$millimeters <- seq(0.1, by=nrow(data_210122)/10000, length.out=nrow(data_210122))
+
+ggplot(data_210122, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210122"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210122 <- loess(data_210122$Ba_DIV_Ca ~ data_210122$millimeters)
+trend1_210122 <- data.frame(trend_210122 = trend_210122$fitted, millimeters = data_210122$millimeters)
+
+ggplot(data_210122, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210122, aes(y= trend_210122), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210122",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210122$no_trend <- data_210122$Ba_DIV_Ca - trend1_210122$trend_210122
+
+# dividing the new timeseries with the sd(timeserie)
+data_210122$nt_sd <- data_210122$no_trend/sd(data_210122$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210122, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210122",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210122.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210124 ####################################
+```{r}
+data_210124 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210124") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210124$row_number <- seq(1, by=1, length.out=nrow(data_210124))
+
+subset(data_210124, Ba_DIV_Ca > 0.002)
+subset(data_210124, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210124 <- data_210124[-2020,]
+data_210124 <- data_210124[-2019,]
+data_210124 <- data_210124[-2018,]
+data_210124 <- data_210124[-2,]
+data_210124 <- data_210124[-1,]
+
+data_210124$row_number <- seq(1, by=1, length.out=nrow(data_210124))
+```
+
+
+```{r}
+data_210124$millimeters <- seq(0.1, by=nrow(data_210124)/10000, length.out=nrow(data_210124))
+
+ggplot(data_210124, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210124"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210124 <- loess(data_210124$Ba_DIV_Ca ~ data_210124$millimeters)
+trend1_210124 <- data.frame(trend_210124 = trend_210124$fitted, millimeters = data_210124$millimeters)
+
+ggplot(data_210124, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210124, aes(y= trend_210124), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210124",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210124$no_trend <- data_210124$Ba_DIV_Ca - trend1_210124$trend_210124
+
+# dividing the new timeseries with the sd(timeserie)
+data_210124$nt_sd <- data_210124$no_trend/sd(data_210124$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210124, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210124",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210124.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210125 ####################################
+```{r}
+data_210125 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210125") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210125$row_number <- seq(1, by=1, length.out=nrow(data_210125))
+
+subset(data_210125, Ba_DIV_Ca > 0.0012)
+subset(data_210125, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210125$Ba_DIV_Ca[1851]    <- (data_210125$Ba_DIV_Ca[1850] + data_210125$Ba_DIV_Ca[1852]) / 2
+
+data_210125 <- data_210125[-1867,]
+data_210125 <- data_210125[-1866,]
+data_210125 <- data_210125[-1865,]
+data_210125 <- data_210125[-1864,]
+data_210125 <- data_210125[-3,]
+data_210125 <- data_210125[-2,]
+data_210125 <- data_210125[-1,]
+
+data_210125$row_number <- seq(1, by=1, length.out=nrow(data_210125))
+```
+
+
+```{r}
+data_210125$millimeters <- seq(0.1, by=nrow(data_210125)/10000, length.out=nrow(data_210125))
+
+ggplot(data_210125, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210125"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210125 <- loess(data_210125$Ba_DIV_Ca ~ data_210125$millimeters)
+trend1_210125 <- data.frame(trend_210125 = trend_210125$fitted, millimeters = data_210125$millimeters)
+
+ggplot(data_210125, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210125, aes(y= trend_210125), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210125",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210125$no_trend <- data_210125$Ba_DIV_Ca - trend1_210125$trend_210125
+
+# dividing the new timeseries with the sd(timeserie)
+data_210125$nt_sd <- data_210125$no_trend/sd(data_210125$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210125, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210125",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210125.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210127 ####################################
+```{r}
+data_210127 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210127") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210127$row_number <- seq(1, by=1, length.out=nrow(data_210127))
+
+subset(data_210127, Ba_DIV_Ca > 0.002)
+subset(data_210127, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210127 <- data_210127[-1651,]
+data_210127 <- data_210127[-3,]
+data_210127 <- data_210127[-2,]
+data_210127 <- data_210127[-1,]
+
+data_210127$row_number <- seq(1, by=1, length.out=nrow(data_210127))
+```
+
+
+```{r}
+data_210127$millimeters <- seq(0.1, by=nrow(data_210127)/10000, length.out=nrow(data_210127))
+
+ggplot(data_210127, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210127"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210127 <- loess(data_210127$Ba_DIV_Ca ~ data_210127$millimeters)
+trend1_210127 <- data.frame(trend_210127 = trend_210127$fitted, millimeters = data_210127$millimeters)
+
+ggplot(data_210127, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210127, aes(y= trend_210127), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210127",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210127$no_trend <- data_210127$Ba_DIV_Ca - trend1_210127$trend_210127
+
+# dividing the new timeseries with the sd(timeserie)
+data_210127$nt_sd <- data_210127$no_trend/sd(data_210127$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210127, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210127",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210127.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210129 ####################################
+```{r}
+data_210129 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210129") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210129$row_number <- seq(1, by=1, length.out=nrow(data_210129))
+
+subset(data_210129, Ba_DIV_Ca > 0.002)
+subset(data_210129, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210129$Ba_DIV_Ca[1271]    <- (data_210129$Ba_DIV_Ca[1270] + data_210129$Ba_DIV_Ca[1272]) / 2
+
+data_210129 <- data_210129[-1504,]
+data_210129 <- data_210129[-1503,]
+data_210129 <- data_210129[-1502,]
+data_210129 <- data_210129[-3,]
+data_210129 <- data_210129[-2,]
+data_210129 <- data_210129[-1,]
+
+data_210129$row_number <- seq(1, by=1, length.out=nrow(data_210129))
+```
+
+
+```{r}
+data_210129$millimeters <- seq(0.1, by=nrow(data_210129)/10000, length.out=nrow(data_210129))
+
+ggplot(data_210129, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210129"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210129 <- loess(data_210129$Ba_DIV_Ca ~ data_210129$millimeters)
+trend1_210129 <- data.frame(trend_210129 = trend_210129$fitted, millimeters = data_210129$millimeters)
+
+ggplot(data_210129, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210129, aes(y= trend_210129), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210129",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210129$no_trend <- data_210129$Ba_DIV_Ca - trend1_210129$trend_210129
+
+# dividing the new timeseries with the sd(timeserie)
+data_210129$nt_sd <- data_210129$no_trend/sd(data_210129$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210129, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210129",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210129.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
+# ############################### 210149 ####################################
+```{r}
+data_210149 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210149") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210149$row_number <- seq(1, by=1, length.out=nrow(data_210149))
+
+subset(data_210149, Ba_DIV_Ca > 0.002)
+subset(data_210149, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210149 <- data_210149[-1734,]
+data_210149 <- data_210149[-1733,]
+data_210149 <- data_210149[-1732,]
+data_210149 <- data_210149[-3,]
+data_210149 <- data_210149[-2,]
+data_210149 <- data_210149[-1,]
+
+data_210149$row_number <- seq(1, by=1, length.out=nrow(data_210149))
+```
+
+
+```{r}
+data_210149$millimeters <- seq(0.1, by=nrow(data_210149)/10000, length.out=nrow(data_210149))
+
+ggplot(data_210149, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210149"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210149 <- loess(data_210149$Ba_DIV_Ca ~ data_210149$millimeters)
+trend1_210149 <- data.frame(trend_210149 = trend_210149$fitted, millimeters = data_210149$millimeters)
+
+ggplot(data_210149, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210149, aes(y= trend_210149), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210149",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210149$no_trend <- data_210149$Ba_DIV_Ca - trend1_210149$trend_210149
+
+# dividing the new timeseries with the sd(timeserie)
+data_210149$nt_sd <- data_210149$no_trend/sd(data_210149$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210149, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210149",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210149.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210151 ####################################
+```{r}
+data_210151 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210151") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210151$row_number <- seq(1, by=1, length.out=nrow(data_210151))
+
+subset(data_210151, Ba_DIV_Ca > 0.002)
+subset(data_210151, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210151$Ba_DIV_Ca[1604] <- (data_210151$Ba_DIV_Ca[1603] + data_210151$Ba_DIV_Ca[1605]) / 2
+data_210151$Ba_DIV_Ca[1602] <- (data_210151$Ba_DIV_Ca[1603] + data_210151$Ba_DIV_Ca[1601]) / 2
+
+data_210151 <- data_210151[-1606,]
+data_210151 <- data_210151[-3,]
+data_210151 <- data_210151[-2,]
+data_210151 <- data_210151[-1,]
+
+data_210151$row_number <- seq(1, by=1, length.out=nrow(data_210151))
+```
+
+
+```{r}
+data_210151$millimeters <- seq(0.1, by=nrow(data_210151)/10000, length.out=nrow(data_210151))
+
+ggplot(data_210151, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210151"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210151 <- loess(data_210151$Ba_DIV_Ca ~ data_210151$millimeters)
+trend1_210151 <- data.frame(trend_210151 = trend_210151$fitted, millimeters = data_210151$millimeters)
+
+ggplot(data_210151, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210151, aes(y= trend_210151), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210151",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210151$no_trend <- data_210151$Ba_DIV_Ca - trend1_210151$trend_210151
+
+# dividing the new timeseries with the sd(timeserie)
+data_210151$nt_sd <- data_210151$no_trend/sd(data_210151$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210151, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210151",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210151.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210160 ####################################
+```{r}
+data_210160 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210160") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210160$row_number <- seq(1, by=1, length.out=nrow(data_210160))
+
+subset(data_210160, Ba_DIV_Ca > 0.002)
+subset(data_210160, Ba_DIV_Ca < 0.00025)
+```
+
+```{r}
+data_210160$Ba_DIV_Ca[1785] <- (data_210160$Ba_DIV_Ca[1786] + data_210160$Ba_DIV_Ca[1784]) / 2
+
+data_210160 <- data_210160[-1790,]
+data_210160 <- data_210160[-1789,]
+data_210160 <- data_210160[-1788,]
+data_210160 <- data_210160[-2,]
+data_210160 <- data_210160[-1,]
+
+data_210160$row_number <- seq(1, by=1, length.out=nrow(data_210160))
+```
+
+
+```{r}
+data_210160$millimeters <- seq(0.1, by=nrow(data_210160)/10000, length.out=nrow(data_210160))
+
+ggplot(data_210160, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210160"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210160 <- loess(data_210160$Ba_DIV_Ca ~ data_210160$millimeters)
+trend1_210160 <- data.frame(trend_210160 = trend_210160$fitted, millimeters = data_210160$millimeters)
+
+ggplot(data_210160, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210160, aes(y= trend_210160), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210160",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210160$no_trend <- data_210160$Ba_DIV_Ca - trend1_210160$trend_210160
+
+# dividing the new timeseries with the sd(timeserie)
+data_210160$nt_sd <- data_210160$no_trend/sd(data_210160$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210160, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210160",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210160.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210161 ####################################
+```{r}
+data_210161 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210161") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210161$row_number <- seq(1, by=1, length.out=nrow(data_210161))
+
+subset(data_210161, Ba_DIV_Ca > 0.0035)
+subset(data_210161, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210161$Ba_DIV_Ca[1551]    <- data_210161$Ba_DIV_Ca[1550] + 1 * (data_210161$Ba_DIV_Ca[1553] - data_210161$Ba_DIV_Ca[1550]) / 4
+data_210161$Ba_DIV_Ca[1552]    <- data_210161$Ba_DIV_Ca[1550] + 2 * (data_210161$Ba_DIV_Ca[1553] - data_210161$Ba_DIV_Ca[1550]) / 4
+
+
+data_210161 <- data_210161[-1746,]
+data_210161 <- data_210161[-1745,]
+data_210161 <- data_210161[-3,]
+data_210161 <- data_210161[-2,]
+data_210161 <- data_210161[-1,]
+
+data_210161$row_number <- seq(1, by=1, length.out=nrow(data_210161))
+```
+
+
+```{r}
+data_210161$millimeters <- seq(0.1, by=nrow(data_210161)/10000, length.out=nrow(data_210161))
+
+ggplot(data_210161, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210161"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210161 <- loess(data_210161$Ba_DIV_Ca ~ data_210161$millimeters)
+trend1_210161 <- data.frame(trend_210161 = trend_210161$fitted, millimeters = data_210161$millimeters)
+
+ggplot(data_210161, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210161, aes(y= trend_210161), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210161",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210161$no_trend <- data_210161$Ba_DIV_Ca - trend1_210161$trend_210161
+
+# dividing the new timeseries with the sd(timeserie)
+data_210161$nt_sd <- data_210161$no_trend/sd(data_210161$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210161, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210161",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210161.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210163 ####################################
+```{r}
+data_210163 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210163") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210163$row_number <- seq(1, by=1, length.out=nrow(data_210163))
+
+subset(data_210163, Ba_DIV_Ca > 0.004)
+subset(data_210163, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210163 <- data_210163[-1553,]
+data_210163 <- data_210163[-1552,]
+data_210163 <- data_210163[-1551,]
+data_210163 <- data_210163[-2,]
+data_210163 <- data_210163[-1,]
+
+data_210163$row_number <- seq(1, by=1, length.out=nrow(data_210163))
+```
+
+
+```{r}
+data_210163$millimeters <- seq(0.1, by=nrow(data_210163)/10000, length.out=nrow(data_210163))
+
+ggplot(data_210163, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210163"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210163 <- loess(data_210163$Ba_DIV_Ca ~ data_210163$millimeters)
+trend1_210163 <- data.frame(trend_210163 = trend_210163$fitted, millimeters = data_210163$millimeters)
+
+ggplot(data_210163, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210163, aes(y= trend_210163), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210163",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210163$no_trend <- data_210163$Ba_DIV_Ca - trend1_210163$trend_210163
+
+# dividing the new timeseries with the sd(timeserie)
+data_210163$nt_sd <- data_210163$no_trend/sd(data_210163$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210163, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210163",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210163.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210169 ####################################
+```{r}
+data_210169 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210169") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210169$row_number <- seq(1, by=1, length.out=nrow(data_210169))
+
+subset(data_210169, Ba_DIV_Ca > 0.002)
+subset(data_210169, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210169 <- data_210169[-1419,]
+data_210169 <- data_210169[-1418,]
+data_210169 <- data_210169[-1417,]
+
+
+data_210169$row_number <- seq(1, by=1, length.out=nrow(data_210169))
+```
+
+
+```{r}
+data_210169$millimeters <- seq(0.1, by=nrow(data_210169)/10000, length.out=nrow(data_210169))
+
+ggplot(data_210169, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210169"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210169 <- loess(data_210169$Ba_DIV_Ca ~ data_210169$millimeters)
+trend1_210169 <- data.frame(trend_210169 = trend_210169$fitted, millimeters = data_210169$millimeters)
+
+ggplot(data_210169, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210169, aes(y= trend_210169), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210169",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210169$no_trend <- data_210169$Ba_DIV_Ca - trend1_210169$trend_210169
+
+# dividing the new timeseries with the sd(timeserie)
+data_210169$nt_sd <- data_210169$no_trend/sd(data_210169$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210169, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210169",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210169.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210172 ####################################
+```{r}
+data_210172 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210172") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210172$row_number <- seq(1, by=1, length.out=nrow(data_210172))
+
+subset(data_210172, Ba_DIV_Ca > 0.002)
+subset(data_210172, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210172$Ba_DIV_Ca[9] <- (data_210172$Ba_DIV_Ca[8] + data_210172$Ba_DIV_Ca[10]) / 2
+
+data_210172 <- data_210172[-956,]
+data_210172 <- data_210172[-955,]
+data_210172 <- data_210172[-3,]
+data_210172 <- data_210172[-2,]
+data_210172 <- data_210172[-1,]
+
+data_210172$row_number <- seq(1, by=1, length.out=nrow(data_210172))
+```
+
+
+```{r}
+data_210172$millimeters <- seq(0.1, by=nrow(data_210172)/10000, length.out=nrow(data_210172))
+
+ggplot(data_210172, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210172"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210172 <- loess(data_210172$Ba_DIV_Ca ~ data_210172$millimeters)
+trend1_210172 <- data.frame(trend_210172 = trend_210172$fitted, millimeters = data_210172$millimeters)
+
+ggplot(data_210172, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210172, aes(y= trend_210172), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210172",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210172$no_trend <- data_210172$Ba_DIV_Ca - trend1_210172$trend_210172
+
+# dividing the new timeseries with the sd(timeserie)
+data_210172$nt_sd <- data_210172$no_trend/sd(data_210172$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210172, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210172",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210172.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+# ############################### 210174 ####################################
+```{r}
+data_210174 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210174") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_210174$row_number <- seq(1, by=1, length.out=nrow(data_210174))
+
+subset(data_210174, Ba_DIV_Ca > 0.002)
+subset(data_210174, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210174$Ba_DIV_Ca[2266]    <- data_210174$Ba_DIV_Ca[2264] + 2 * (data_210174$Ba_DIV_Ca[2267] - data_210174$Ba_DIV_Ca[2264]) / 3
+data_210174$Ba_DIV_Ca[2265]    <- data_210174$Ba_DIV_Ca[2264] + 1 * (data_210174$Ba_DIV_Ca[2267] - data_210174$Ba_DIV_Ca[2264]) / 3
+
+
+data_210174 <- data_210174[-2269,]
+data_210174 <- data_210174[-2268,]
+data_210174 <- data_210174[-2,]
+data_210174 <- data_210174[-1,]
+
+data_210174$row_number <- seq(1, by=1, length.out=nrow(data_210174))
+```
+
+
+```{r}
+data_210174$millimeters <- seq(0.1, by=nrow(data_210174)/10000, length.out=nrow(data_210174))
+
+ggplot(data_210174, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_210174"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210174 <- loess(data_210174$Ba_DIV_Ca ~ data_210174$millimeters)
+trend1_210174 <- data.frame(trend_210174 = trend_210174$fitted, millimeters = data_210174$millimeters)
+
+ggplot(data_210174, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210174, aes(y= trend_210174), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210174",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_210174$no_trend <- data_210174$Ba_DIV_Ca - trend1_210174$trend_210174
+
+# dividing the new timeseries with the sd(timeserie)
+data_210174$nt_sd <- data_210174$no_trend/sd(data_210174$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_210174, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_210174",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/210174.png"), 
+         plot = p, width = 8, height = 6)
+
+```
+
+# ############################### 510158 ####################################
+```{r}
+data_510158 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_510158") %>%
+  select(whale_index, Ba_DIV_Ca)
+
+data_510158$row_number <- seq(1, by=1, length.out=nrow(data_510158))
+
+subset(data_510158, Ba_DIV_Ca > 0.002)
+subset(data_510158, Ba_DIV_Ca < 0.00)
+```
+
+```{r}
+data_510158 <- data_510158[-2026,]
+data_510158 <- data_510158[-3,]
+data_510158 <- data_510158[-2,]
+data_510158 <- data_510158[-1,]
+
+data_510158$row_number <- seq(1, by=1, length.out=nrow(data_510158))
+```
+
+
+```{r}
+data_510158$millimeters <- seq(0.1, by=nrow(data_510158)/10000, length.out=nrow(data_510158))
+
+ggplot(data_510158, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Ba_DIV_Ca vs Artificial Millimeters for SMP_510158"),
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_510158 <- loess(data_510158$Ba_DIV_Ca ~ data_510158$millimeters)
+trend1_510158 <- data.frame(trend_510158 = trend_510158$fitted, millimeters = data_510158$millimeters)
+
+ggplot(data_510158, aes(x = millimeters, y = Ba_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_510158, aes(y= trend_510158), color = "blue") +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_510158",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+# subtracting the trend
+data_510158$no_trend <- data_510158$Ba_DIV_Ca - trend1_510158$trend_510158
+
+# dividing the new timeseries with the sd(timeserie)
+data_510158$nt_sd <- data_510158$no_trend/sd(data_510158$no_trend)
+
+# see if they oscillate around 0
+p <- ggplot(data_510158, aes(x = millimeters, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Ba_DIV_Ca vs Artificial Millimeters for SMP_510158",
+       x = "Millimeters",
+       y = "Ba_DIV_Ca") +
+  theme_bw()
+
+  # Save the plot in its respective folder
+  ggsave(filename = file.path("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Osciliate_around_0_plots/Ba/510158.png"), 
+         plot = p, width = 8, height = 6)
+```
+
+
