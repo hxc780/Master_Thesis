@@ -1,0 +1,208 @@
+---
+title: "raw_vs_fitted_and_convergence_plots"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+
+
+# Henter data ind, så jeg kan få Elapsed_time
+```{r}
+Sr_186 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Sr/data_186.csv")
+Ba_186 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Ba/data_186.csv")
+Pb_186 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Pb/data_186.csv")
+```
+
+# Henter data ind, så jeg kan få Y og g
+```{r}
+warp.obj_Sr_186 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Sr/186/186_warp_obj_saved.rds")
+warp.obj_Ba_186 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Ba/186/186_warp_obj_saved.rds")
+warp.obj_Pb_186 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Pb/186/186_warp_obj_saved.rds")
+warp.obj_merged_186 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Merged/186/186_warp_obj_saved.rds")
+```
+
+
+
+# Individuelle dataframes for hvert element, så jeg kan styre at hvis Ba har fået fjernet 10 punkter i starten, så starter g-linjen 10 punkter senere på x-aksen 
+```{r}
+df_Sr_186 <- data.frame(
+                    Elapsed_Time = Sr_186$Elapsed_DIV_Time,
+                    Y = warp.obj_Sr_186$Y,
+                    Y_hat = warp.obj_Sr_186$Y.hat,
+                    gx_hat = warp.obj_Sr_186$gx.hat / (2 * pi),
+                    Element = "Sr")
+
+df_Ba_186 <- data.frame(
+                    Elapsed_Time = Ba_186$Elapsed_DIV_Time,
+                    Y = warp.obj_Ba_186$Y,
+                    Y_hat = warp.obj_Ba_186$Y.hat,
+                    gx_hat = warp.obj_Ba_186$gx.hat / (2 * pi),
+                    Element = "Ba")
+
+df_Pb_186 <- data.frame(
+                    Elapsed_Time = Pb_186$Elapsed_DIV_Time,
+                    Y = warp.obj_Pb_186$Y,
+                    Y_hat = warp.obj_Pb_186$Y.hat,
+                    gx_hat = warp.obj_Pb_186$gx.hat / (2 * pi),
+                    Element = "Pb")
+
+# Create a named list of time vectors
+time_vectors <- list(
+  Pb = Pb_186$Elapsed_DIV_Time,
+  Sr = Sr_186$Elapsed_DIV_Time,
+  Ba = Ba_186$Elapsed_DIV_Time
+)
+
+# Find the name of the longest one
+longest_element <- names(which.max(sapply(time_vectors, length)))
+
+# Extract the longest time vector
+Elapsed_Time_longest <- time_vectors[[longest_element]]
+
+# Create the merged data frame
+df_merged_186 <- data.frame(
+                        Elapsed_Time = Elapsed_Time_longest,
+                        Y = warp.obj_merged_186$Y,
+                        Y_hat = warp.obj_merged_186$Y.hat,
+                        gx_hat = warp.obj_merged_186$gx.hat / (2 * pi),
+                        Element = "Combined Signal")
+```
+
+
+```{r}
+ggplot() +
+  geom_line(data = df_merged_186, aes(x = Elapsed_Time, y = Y, color = "Raw signal"), size = 0.6)+
+  # geom_line(data = df_merged_186, aes(x = Elapsed_Time, y = Y_hat, color = "Fitted signal"), size = 0.6) +
+  scale_color_manual(values = c(
+    "Fitted signal" = "red",
+    # "Fitted combined signal" = "#F8766D",
+    # "Fitted Sr" = "#C74CFF",
+    "Raw signal" = "black"
+  )) +
+  labs(title = "",
+       x = "Elapsed Time", y = "Signal", color = " ") +
+  theme_bw() + 
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 16)
+  )
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/Fitted_raw/Fitted_vs_Raw_merged_186.png", width = 8, height = 5, dpi = 300)
+```
+
+
+
+# ################################### Variables (theta) convergence plots as ggplot ##########################
+```{r}
+warp.obj_merged_186 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Merged/186/186_warp_obj_saved.rds")
+
+n.saem <- 186
+
+df <- as.data.frame(warp.obj_merged_186$param.est) %>%
+  mutate(iteration = seq_len(nrow(.))) %>%
+  pivot_longer(cols = -iteration, names_to = "Parameter", values_to = "Estimate") %>%
+  filter(Parameter != "fellerfrac")  # fjerner fellerfrac
+
+ggplot(df, aes(x = iteration, y = Estimate)) +
+  geom_line(size = 1) +
+  labs(title = "",
+       x = "Iteration",
+       y = "Estimated Value") +
+  theme_minimal() +
+  facet_wrap(~ Parameter, scales = "free")
+```
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/Parameter_Estimates_Over_Iterations_186.png", width = 8, height = 5, dpi = 300)
+
+```
+
+
+# Henter b værdi ud for alle hvaler
+```{r}
+library(purrr)
+library(dplyr)
+library(tidyr)
+
+# Define input
+whale_ids <- c(
+  15, 186, 186, 26, 99, 186,
+  102, 112, 1186, 127, 133, 135, 137, 146, 157, 164, 169, 1866, 1868, 186,
+  1860101, 1860106, 1860110, 1860111, 1860113, 1860114, 1860122, 1860124,
+  1860125, 1860127, 186, 1860149, 186, 186, 186,
+  1860163, 1860169, 1860172, 1860174, 510158
+)
+
+elements <- c("Sr", "Ba", "Pb", "Merged")
+base_path <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW"
+
+# Function to safely extract b parameter (5th entry of theta.hat)
+extract_b_value <- function(whale_id, element) {
+  file_path <- file.path(base_path, element, as.character(whale_id), paste0(whale_id, "_warp_obj_saved.rds"))
+  if (file.exists(file_path)) {
+    obj <- readRDS(file_path)
+    if (!is.null(obj$theta.hat) && length(obj$theta.hat) >= 5) {
+      return(obj$theta.hat[5])
+    }
+  }
+  return(NA_real_)
+}
+
+# Extract values and build table
+b_table <- map_dfr(whale_ids, function(whale_id) {
+  b_vals <- map_dbl(elements, ~extract_b_value(whale_id, .x))
+  tibble(whale_id = whale_id, Sr = b_vals[1], Ba = b_vals[2], Pb = b_vals[3], Merged = b_vals[4])
+})
+
+# Preview the result
+print(b_table)
+```
+
+#laver latex tabel
+```{r}
+b_table_latex <- b_table %>%
+  mutate(
+    whale_id = as.character(whale_id),  
+    across(-whale_id, ~ formatC(.x, format = "f", digits = 2))
+  )
+
+install.packages("xtable")
+
+library(xtable)
+
+latex_code <- xtable(b_table_latex, caption = "Estimated phase offset $b$ for each whale and signal")
+
+print(latex_code, include.rownames = FALSE, sanitize.text.function = identity)
+```
+
+
+# tæller antal 0'er og laver latex tabel 
+```{r}
+zero_counts <- b_table %>%
+  select(-whale_id) %>%
+  summarise(across(everything(), ~ sum(. == 0, na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "Element", values_to = "Zero_Counts")
+
+latex_zeros <- xtable(zero_counts, caption = "Number of zeros in the estimated $b$ values for each element")
+
+print(latex_zeros, include.rownames = FALSE, sanitize.text.function = identity)
+```
+
+

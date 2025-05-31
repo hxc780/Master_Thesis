@@ -1,0 +1,217 @@
+---
+title: "g plots and time warped plots"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/0 Utils/Preprocessing - Amplitude Estimation.R")
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+
+
+# Henter data ind, så jeg kan få Elapsed_time
+```{r}
+Sr_510158 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Sr/data_510158.csv")
+Ba_510158 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Ba/data_510158.csv")
+Pb_510158 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Pb/data_510158.csv")
+```
+
+# Henter data ind, så jeg kan få Y og g
+```{r}
+warp.obj_Sr_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Sr/510158/510158_warp_obj_saved.rds")
+warp.obj_Ba_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Ba/510158/510158_warp_obj_saved.rds")
+warp.obj_Pb_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Pb/510158/510158_warp_obj_saved.rds")
+warp.obj_merged_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/merged/510158/510158_warp_obj_saved.rds")
+```
+
+
+# Individuelle dataframes for hvert element, så jeg kan styre at hvis Ba har fået fjernet 10 punkter i starten, så starter g-linjen 10 punkter senere på x-aksen 
+```{r}
+df_Sr_510158 <- data.frame(
+                    Elapsed_Time = Sr_510158$Elapsed_DIV_Time,
+                    Y = warp.obj_Sr_510158$Y,
+                    gx_hat = warp.obj_Sr_510158$gx.hat / (2 * pi),
+                    Element = "Sr")
+
+df_Ba_510158 <- data.frame(
+                    Elapsed_Time = Ba_510158$Elapsed_DIV_Time,
+                    Y = warp.obj_Ba_510158$Y,
+                    gx_hat = warp.obj_Ba_510158$gx.hat / (2 * pi),
+                    Element = "Ba")
+
+df_Pb_510158 <- data.frame(
+                    Elapsed_Time = Pb_510158$Elapsed_DIV_Time,
+                    Y = warp.obj_Pb_510158$Y,
+                    gx_hat = warp.obj_Pb_510158$gx.hat / (2 * pi),
+                    Element = "Pb")
+
+# Create a named list of time vectors
+time_vectors <- list(
+  Pb = Pb_510158$Elapsed_DIV_Time,
+  Sr = Sr_510158$Elapsed_DIV_Time,
+  Ba = Ba_510158$Elapsed_DIV_Time
+)
+
+# Find the name of the longest one
+longest_element <- names(which.max(sapply(time_vectors, length)))
+
+# Extract the longest time vector
+Elapsed_Time_longest <- time_vectors[[longest_element]]
+
+# Create the merged data frame
+df_merged_510158 <- data.frame(
+                        Elapsed_Time = Elapsed_Time_longest,
+                        Y = warp.obj_merged_510158$Y,
+                        gx_hat = warp.obj_merged_510158$gx.hat / (2 * pi),
+                        gx_hat_RAW = warp.obj_merged_510158$gx.hat,
+                        Element = "Combined Signal")
+```
+
+
+```{r}
+df_all <- bind_rows(df_Sr_510158, df_Ba_510158, df_Pb_510158, df_merged_510158)
+```
+
+
+# g-plot with data labels
+```{r}
+counted_age <- 23
+
+df_labels <- df_all %>%
+  group_by(Element) %>%
+  filter(Elapsed_Time == max(Elapsed_Time)) %>%
+  ungroup()
+
+
+# if the labels are on top of each other 
+df_labels <- df_labels %>%
+  mutate(
+    y_offset = case_when(
+     # Element == "Pb" ~ gx_hat + 0.3,
+       Element == "Ba" ~ gx_hat - 0,  
+      #Element == "Sr" ~ gx_hat - 0.3,
+      #Element == "Combined Signal" ~ gx_hat + 0.3,  
+      TRUE ~ gx_hat                   
+    )
+  )
+
+
+
+ggplot(df_all, aes(x = Elapsed_Time, y = gx_hat, color = Element)) +
+  geom_line(size = 0.7) +
+  geom_hline(yintercept = counted_age, linetype = "dashed", color = "black", size = 0.6) +
+  annotate("text", x = max(df_all$Elapsed_Time) * 0.3, y = counted_age+0.5,
+           label = paste("Counted age = ", counted_age), hjust = 1, color = "black", size = 3.5) +
+  geom_text(data = df_labels, aes(y=y_offset,label = sprintf("%.2f", gx_hat)), hjust = -0.1, size = 3.4, show.legend = FALSE) +
+  labs(title = "",
+       x = "Elapsed Time", y = "Years") +
+  scale_color_manual(values = c(
+    "Ba"     = "#F8766D",
+    "Pb"     = "#00BA38",
+    "Sr"     = "#619CFF",
+    "Combined Signal" = "#C77CFF"
+  )) +
+  theme_bw(base_size = 12) +
+  xlim(NA, max(df_all$Elapsed_Time) * 1.06) +  
+  guides(color = guide_legend(title = NULL))
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/g_plots/growth_time_whale_510158.png", width = 8, height = 5, dpi = 300)
+```
+
+
+
+# ############# Time warping plots #####################
+
+Time of death for 20 whales is  and the others are 1986
+```{r}
+df_merged_510158$time_warp <- 2021 - (max(df_merged_510158$gx_hat_RAW) -df_merged_510158$gx_hat_RAW)/(2*pi)
+```
+
+```{r}
+ggplot(df_merged_510158, aes(x = time_warp, y = Y)) +
+  geom_line(color = "black", size = 0.6) +
+  labs(title = "", x = "Years", y = "") +
+   scale_x_continuous(breaks = seq(1990, 2021, by = 1)) +
+  theme_bw()
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/time_warped/time_warped_510158.png", width = 8, height = 5, dpi = 300)
+```
+
+
+
+
+
+
+###looper igennem time warped plots### 
+```{r}
+library(ggplot2)
+
+# Whale IDs
+whale_ids <- c(
+  15, 18, 21, 26, 99, 100,
+  102, 112, 121, 127, 133, 135, 137, 146, 157, 164, 169, 186, 188, 215,
+  210101, 210106, 210110, 210111, 210113, 210114, 210122, 210124,
+  210125, 210127, 210129, 210149, 210151, 210160, 210161,
+  210163, 210169, 210172, 210174, 510158
+)
+
+# Directories
+base_path <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Ba"
+output_path <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/time_warped/Ba"
+
+# Loop through each whale ID
+for (id in whale_ids) {
+  # Construct file path
+  rds_path <- file.path(base_path, as.character(id), paste0(id, "_warp_obj_saved.rds"))
+  
+  # Check existence
+  if (!file.exists(rds_path)) {
+    warning(paste("Missing file:", rds_path))
+    next
+  }
+  
+  # Load object
+  warp.obj <- readRDS(rds_path)
+  
+  # Construct data frame
+  df <- data.frame(
+    Y = warp.obj$Y,
+    gx_hat = warp.obj$gx.hat / (2 * pi),
+    gx_hat_RAW = warp.obj$gx.hat
+  )
+  
+  # Compute time-warped axis
+  df$time_warp <- 1986 - (max(df$gx_hat_RAW) - df$gx_hat_RAW) / (2 * pi)
+  
+  p <- ggplot(df, aes(x = time_warp, y = Y)) +
+    geom_line(color = "black", linewidth = 0.6) +
+    labs(title = "", x = "Years", y = "") +
+    scale_x_continuous(breaks = seq(1940, 1986, by = 1)) +
+    theme_bw()
+  
+  out_path <- file.path(output_path, paste0("time_warped_Ba_", id, ".png"))
+  ggsave(out_path, plot = p, width = 8, height = 5, dpi = 300)
+}
+
+```
+
+
+

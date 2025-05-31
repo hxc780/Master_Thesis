@@ -1,0 +1,130 @@
+---
+title: "Plotting_the_fits_for_elements_together"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+warp.obj_Sr_133 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots/Sr/133/133_warp_obj_saved.rds")
+warp.obj_Pb_133 <- readRDS("Plots/Pb/133/133_warp_obj_saved.rds")
+warp.obj_Ba_133 <- readRDS("Plots/Ba/133/133_warp_obj_saved.rds")
+```
+
+```{r}
+Z_Sr_133 <- warp.obj_Sr_133$Y
+Z_Ba_133 <- warp.obj_Ba_133$Y
+Z_Pb_133 <- warp.obj_Pb_133$Y
+
+Z.hat_Sr_133 <- warp.obj_Sr_133$Y.hat
+Z.hat_Ba_133 <- warp.obj_Ba_133$Y.hat
+Z.hat_Pb_133 <- warp.obj_Pb_133$Y.hat
+```
+
+
+```{r}
+par(mar = c(5, 4, 4, 8), xpd = TRUE)  # extra space on the right (8)
+
+# Plot the raw signal
+plot(Z_Sr_133, type = "l", col = "black", lwd = 1, 
+     ylab = "Signal", xlab = "Index", main = "Raw and Fitted Signals for Whale 133")
+
+# Add fitted signals from each element
+lines(Z.hat_Sr_133, col = "red", lwd = 2)   # Sr
+lines(Z.hat_Pb_133, col = "blue", lwd = 2)  # Pb
+lines(Z.hat_Ba_133, col = "green", lwd = 2) # Ba
+
+# Add legend
+legend("topright", inset = c(-0.33, 0),  # push rightward
+       legend = c("Raw (Sr)", "Fitted Sr", "Fitted Pb", "Fitted Ba"),
+       col = c("black", "red", "blue", "green"), lty = 1, lwd = 2, bty = "n")
+```
+```{r}
+par(mar = c(5, 4, 4, 8), xpd = TRUE) 
+
+plot(Z_Ba_133, type = "l", col = "black", lwd = 1, 
+     ylab = "Signal", xlab = "Index", main = "Raw and Fitted Signals for Whale 133")
+
+lines(Z.hat_Sr, col = "red", lwd = 2)   # Sr
+lines(Z.hat_Pb, col = "blue", lwd = 2)  # Pb
+lines(Z.hat_Ba, col = "green", lwd = 2) # Ba
+
+legend("topright", inset = c(-0.33, 0),  # push rightward
+       legend = c("Raw (Sr)", "Fitted Sr", "Fitted Pb", "Fitted Ba"),
+       col = c("black", "red", "blue", "green"), lty = 1, lwd = 2, bty = "n")
+```
+
+```{r}
+par(mar = c(5, 4, 4, 8), xpd = TRUE) 
+
+plot(Z_Pb_133, type = "l", col = "black", lwd = 1, 
+     ylab = "Signal", xlab = "Index", main = "Raw and Fitted Signals for Whale 133")
+
+lines(Z.hat_Sr, col = "red", lwd = 2)   # Sr
+lines(Z.hat_Pb, col = "blue", lwd = 2)  # Pb
+lines(Z.hat_Ba, col = "green", lwd = 2) # Ba
+
+legend("topright", inset = c(-0.33, 0),  # push rightward
+       legend = c("Raw (Sr)", "Fitted Sr", "Fitted Pb", "Fitted Ba"),
+       col = c("black", "red", "blue", "green"), lty = 1, lwd = 2, bty = "n")
+```
+
+# Stacker dem sammen 
+
+```{r}
+warp.obj_Sr_133 <- readRDS("Plots/Sr/133/133_warp_obj_saved.rds")
+warp.obj_Pb_133 <- readRDS("Plots/Pb/133/133_warp_obj_saved.rds")
+warp.obj_Ba_133 <- readRDS("Plots/Ba/133/133_warp_obj_saved.rds")
+
+```
+
+```{r}
+Z_Sr_133 <- warp.obj_Sr_133$Y
+Z_Ba_133 <- warp.obj_Ba_133$Y
+Z_Pb_133 <- warp.obj_Pb_133$Y
+
+Z.hat_Sr_133 <- warp.obj_Sr_133$Y.hat
+Z.hat_Ba_133 <- warp.obj_Ba_133$Y.hat
+Z.hat_Pb_133 <- warp.obj_Pb_133$Y.hat
+```
+
+```{r}
+# Set up plotting area: 3 stacked plots
+par(mfrow = c(3, 1), mar = c(2, 4, 2, 6), xpd = FALSE)
+
+# Plot 1: Sr
+plot(Z_Sr_133, type = "l", col = "black", lwd = 1,
+     ylab = "Signal", xlab = "Index", main = "Sr - Whale 133")
+lines(Z.hat_Sr, col = "red", lwd = 2)
+lines(Z.hat_Pb, col = "blue", lwd = 2)
+lines(Z.hat_Ba, col = "green", lwd = 2)
+
+# Plot 2: Ba
+plot(Z_Ba_133, type = "l", col = "black", lwd = 1,
+     ylab = "Signal", xlab = "Index", main = "Ba - Whale 133")
+lines(Z.hat_Sr, col = "red", lwd = 2)
+lines(Z.hat_Pb, col = "blue", lwd = 2)
+lines(Z.hat_Ba, col = "green", lwd = 2)
+
+# Plot 3: Pb
+plot(Z_Pb_133, type = "l", col = "black", lwd = 1,
+     ylab = "Signal", xlab = "Index", main = "Pb - Whale 133")
+lines(Z.hat_Sr, col = "red", lwd = 2)
+lines(Z.hat_Pb, col = "blue", lwd = 2)
+lines(Z.hat_Ba, col = "green", lwd = 2)
+
+legend("topright", inset = c(-0.15, -1.3), 
+       legend = c("Fitted Sr", "Fitted Pb", "Fitted Ba"),
+       col = c("red", "blue", "green"), lty = 1, lwd = 2, bty = "n", xpd = NA)
+
+# Reset layout
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2), oma = c(0, 0, 0, 0), xpd = FALSE)
+```
+
+
+

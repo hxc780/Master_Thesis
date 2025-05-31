@@ -1,0 +1,98 @@
+---
+title: "COS plots"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+
+
+# Henter data ind, så jeg kan få Elapsed_time
+```{r}
+Sr_133 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Sr/data_133.csv")
+```
+
+# Henter data ind, så jeg kan få Y og g
+```{r}
+warp.obj_Sr_133 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/133_Sr_COS_warp_obj_saved.rds")
+```
+
+
+```{r}
+df_Sr_133 <- data.frame(
+                    Elapsed_Time = Sr_133$Elapsed_DIV_Time,
+                    Y = warp.obj_Sr_133$Y,
+                    Y_hat = warp.obj_Sr_133$Y.hat,
+                    gx_hat = warp.obj_Sr_133$gx.hat / (2 * pi),
+                    Element = "Sr")
+```
+
+
+```{r}
+ggplot() +
+  geom_line(data = df_Sr_133, aes(x = Elapsed_Time, y = Y, color = "Raw signal"), size = 0.6)+
+  geom_line(data = df_Sr_133, aes(x = Elapsed_Time, y = Y_hat, color = "Fitted signal"), size = 0.6) +
+  scale_color_manual(values = c(
+    "Fitted signal" = "red",
+    # "Fitted combined signal" = "#F8766D",
+    # "Fitted Sr" = "#C74CFF",
+    "Raw signal" = "black"
+  )) +
+  labs(title = "",
+       x = "Elapsed Time", y = "Signal", color = " ") +
+  theme_bw() + 
+  theme(
+    legend.position = "bottom",
+    legend.text = element_text(size = 18),
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12)
+  )
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/COS_Fitted_vs_Raw_133.png", width = 8, height = 5, dpi = 300)
+```
+
+
+
+# ################################### Variables (theta) convergence plots ##########################
+```{r}
+n.saem <- 100
+
+df <- as.data.frame(warp.obj_Sr_133$param.est) %>%
+  mutate(iteration = seq_len(nrow(.))) %>%
+  pivot_longer(cols = -iteration, names_to = "Parameter", values_to = "Estimate") %>%
+  filter(Parameter %in% c("A", "B"))  # Keep only A and B
+
+ggplot(df, aes(x = iteration, y = Estimate)) +
+  geom_line(size = 1) +
+  labs(title = "",
+       x = "Iteration",
+       y = "Estimated Value") +
+  theme_minimal() +
+  facet_wrap(~ Parameter, scales = "free")+ 
+    theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 16)
+  )
+```
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/COS_Parameter_Estimates_Over_Iterations_133.png", width = 8, height = 5, dpi = 300)
+
+```
+

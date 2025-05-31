@@ -1,0 +1,412 @@
+---
+title: "dating the peaks"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# ######################## All togehter as one ##############################
+```{r}
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Whale data
+whale_ids <- c(
+  15, 18, 21, 26, 99, 100, 102, 112, 121, 127,
+  133, 135, 137, 146, 157, 164, 169, 186, 188, 215, 210101,
+  210106, 210110, 210111, 210113, 210114, 210122, 210124,
+  210125, 210127, 210129, 210149, 210151, 210160, 210161,
+  210163, 210169, 210172, 210174, 510158
+)
+
+counted_age <- c(
+  14, 9, 10, 20, 14, 9, 12, 12, 15, 20, 8, 15, 21, 8, 9, 7, 12, 17, 11, 14,
+  17, 16, 11, 16, 13, 10, 12, 33, 11, 13, 12, 20, 17, 15, 21, 19, 15, 9, 9, 23
+)
+
+elements <- c("Sr", "Ba", "Pb", "Merged")
+base_path <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW"
+
+# Function to extract age estimate
+get_estimated_age <- function(whale_id, element) {
+  file_path <- file.path(base_path, element, as.character(whale_id), paste0(whale_id, "_warp_obj_saved.rds"))
+  if (file.exists(file_path)) {
+    obj <- readRDS(file_path)
+    if (!is.null(obj$gx.hat)) {
+      return(max(obj$gx.hat) / (2 * pi))
+    }
+  }
+  return(NA)
+}
+
+# Build wide dataframe
+estimated_ages <- map_dfr(seq_along(whale_ids), function(i) {
+  id <- whale_ids[i]
+  counted <- counted_age[i]
+  est <- map_dbl(elements, ~get_estimated_age(id, .x))
+  names(est) <- paste0("Age_", elements)
+  data.frame(whale_id = id, counted_age = counted, t(est))
+})
+
+# Convert to long format for plotting
+plot_df <- estimated_ages %>%
+  pivot_longer(cols = starts_with("Age_"),
+               names_to = "method",
+               values_to = "age") %>%
+  mutate(
+    method = recode(method,
+                    Age_Ba = "Ba",
+                    Age_Pb = "Pb",
+                    Age_Sr = "Sr",
+                    Age_Merged = "Combined Signal")
+  )
+
+# Add counted age rows
+counted_df <- estimated_ages %>%
+  select(whale_id, counted_age) %>%
+  mutate(method = "Counted", age = counted_age) %>%
+  select(-counted_age)
+
+# Combine
+plot_df <- bind_rows(plot_df, counted_df)
+```
+
+
+```{r}
+# Plot
+ggplot(plot_df, aes(x = factor(whale_id), y = age, color = method, shape = method)) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(
+    values = c(
+      "Ba" = "#F8766D",
+      "Pb" = "#00BA38",
+      "Sr" = "#619CFF",
+      "Combined Signal" = "#C77CFF",
+      "Counted" = "black"
+    )
+  ) +
+  scale_shape_manual(
+    values = c(
+      "Ba" = 16,  
+      "Pb" = 17,  
+      "Sr" = 15,  
+      "Combined Signal" = 18,  
+      "Counted" = 4            
+    )
+  ) +
+  labs(
+    x = "Whale ID",
+    y = "Age",
+    title = "Estimated and Counted Ages for Each Whale",
+    color = "Method",
+    shape = "Method"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)
+  )
+
+```
+
+
+# ################# which element is the cloest to coutned age ##############
+```{r}
+# Identifing closest estimated age per whale
+closest_df <- estimated_ages %>%
+  rowwise() %>%
+  mutate(
+    closest_method = c("Sr", "Ba", "Pb", "Combined Signal")[which.min(abs(c(Age_Sr, Age_Ba, Age_Pb, Age_Merged) - counted_age))],
+    closest_age = min(c(Age_Sr, Age_Ba, Age_Pb, Age_Merged), na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  select(whale_id, counted_age, closest_method, closest_age)
+
+# long format for plotting
+plot_df2 <- closest_df %>%
+  pivot_longer(cols = c(counted_age, closest_age),
+               names_to = "type",
+               values_to = "age") %>%
+  mutate(
+    method = ifelse(type == "counted_age", "Counted", closest_method)
+  )
+
+p_close <- ggplot(plot_df2, aes(x = factor(whale_id), y = age)) +
+  geom_line(aes(group = whale_id), color = "gray80", linewidth = 0.5) + 
+  geom_point(aes(color = method), shape = 16, size = 2.5) +  
+  scale_color_manual(
+    values = c(
+      "Ba" = "#F8766D",
+      "Pb" = "#00BA38",
+      "Sr" = "#619CFF",
+      "Combined Signal" = "#C77CFF",
+      "Counted" = "black"
+    )
+  ) +
+  labs(
+    x = " ",
+    y = "Age",
+    title = " ",
+    color = "Method"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+    legend.title = element_blank(),
+    legend.text = element_text(size = 12),
+    axis.text.y = element_text(size = 12)
+  )
+
+p_close
+```
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/closest_method.png", plot = p_close, width = 8, height = 5, dpi = 300)
+```
+
+
+
+```{r}
+# finding how often each method is closest to counted age
+closest_counts <- closest_df %>%
+  count(closest_method, name = "n") %>%
+  arrange(desc(n))
+
+print(closest_counts)
+```
+
+
+
+
+
+
+
+
+
+# ######################## Seperate plots ##############################
+
+```{r}
+library(purrr)
+library(dplyr)
+library(tidyr)
+
+# Whale data
+whale_ids <- c(
+  15, 18, 21, 26, 99, 100, 102, 112, 121, 127,
+  133, 135, 137, 146, 157, 164, 169, 186, 188, 215, 210101,
+  210106, 210110, 210111, 210113, 210114, 210122, 210124,
+  210125, 210127, 210129, 210149, 210151, 210160, 210161,
+  210163, 210169, 210172, 210174, 510158
+)
+
+counted_age <- c(
+  14, 9, 10, 20, 14, 9, 12, 12, 15, 20, 8, 15, 21, 8, 9, 7, 12, 17, 11, 14,
+  17, 16, 11, 16, 13, 10, 12, 33, 11, 13, 12, 20, 17, 15, 21, 19, 15, 9, 9, 23
+)
+
+elements <- c("Ba", "Pb", "Sr", "Merged")
+base_path <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW"
+
+# Function to get estimated age
+get_estimated_age <- function(whale_id, element) {
+  file_path <- file.path(base_path, element, as.character(whale_id), paste0(whale_id, "_warp_obj_saved.rds"))
+  if (file.exists(file_path)) {
+    obj <- readRDS(file_path)
+    if (!is.null(obj$gx.hat)) {
+      return(max(obj$gx.hat) / (2 * pi))
+    }
+  }
+  return(NA)
+}
+
+# Construct tidy long dataframe
+df_list <- list()
+
+for (i in seq_along(whale_ids)) {
+  id <- whale_ids[i]
+  counted <- counted_age[i]
+  
+  # Add counted age entry
+  df_list[[length(df_list) + 1]] <- data.frame(
+    whale_id = id,
+    method = "Counted",
+    signal = NA,
+    age = counted
+  )
+  
+  # Add estimated age entries for each signal
+  for (el in elements) {
+    est_age <- get_estimated_age(id, el)
+    df_list[[length(df_list) + 1]] <- data.frame(
+      whale_id = id,
+      method = "Estimated",
+      signal = ifelse(el == "Merged", "Combined Signal", el),
+      age = est_age
+    )
+  }
+}
+
+age_df <- bind_rows(df_list)
+
+```
+
+# ######################## Combined Signal ##############################
+```{r}
+p_combined <- ggplot(filter(age_df, signal == "Combined Signal" | is.na(signal)), 
+       aes(x = factor(whale_id), y = age)) +
+  geom_line(aes(group = whale_id), color = "gray80", linewidth = 0.5) +
+  geom_point(aes(color = method, shape = method, size = method)) +
+  scale_color_manual(
+    values = c("Estimated" = "#C77CFF", "Counted" = "black"),
+    labels = c("Estimated" = "Estimated age for combined signal", "Counted" = "Counted age")
+  ) +
+  scale_shape_manual(
+    values = c("Estimated" = 16, "Counted" = 16),
+    labels = c("Estimated" = "Estimated age for combined signal", "Counted" = "Counted age")
+  ) +
+  scale_size_manual(
+    values = c("Estimated" = 1.8, "Counted" = 2.5),
+    labels = c("Estimated" = "Estimated age for combined signal", "Counted" = "Counted age")
+  ) +
+  guides(
+    color = guide_legend(order = 1),
+    shape = "none",
+    size = "none"
+  ) +
+  labs(
+    x = " ",
+    y = "Age",
+    title = " "
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_text(size = 13),
+    legend.text = element_text(size = 20),
+    axis.title.y = element_text(size = 12)
+  )
+
+p_combined
+```
+
+```{r}
+p_Ba <- ggplot(filter(age_df, signal == "Ba" | is.na(signal)), 
+       aes(x = factor(whale_id), y = age)) +
+  geom_line(aes(group = whale_id), color = "gray80", linewidth = 0.5) +
+  geom_point(aes(color = method, shape = method, size = method)) +
+  scale_color_manual(
+    values = c("Estimated" = "#F8766D", "Counted" = "black"),
+    labels = c("Estimated" = "Estimated age for Ba", "Counted" = "Counted age")
+  ) +
+  scale_shape_manual(
+    values = c("Estimated" = 16, "Counted" = 16),
+    labels = c("Estimated" = "Estimated age for Ba", "Counted" = "Counted age")
+  ) +
+  scale_size_manual(
+    values = c("Estimated" = 1.8, "Counted" = 2.8),
+    labels = c("Estimated" = "Estimated age for Ba", "Counted" = "Counted age")
+  ) +
+  guides(
+    color = guide_legend(order = 1),
+    shape = "none",
+    size = "none"
+  ) +
+  labs(x = " ", y = "Age", title = " ") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_text(size = 13),
+    legend.text = element_text(size = 20),
+    axis.title.y = element_text(size = 12)
+  )
+
+p_Ba
+```
+
+```{r}
+p_Pb <- ggplot(filter(age_df, signal == "Pb" | is.na(signal)), 
+       aes(x = factor(whale_id), y = age)) +
+  geom_line(aes(group = whale_id), color = "gray80", linewidth = 0.5) +
+  geom_point(aes(color = method, shape = method, size = method)) +
+  scale_color_manual(
+    values = c("Estimated" = "#00BA38", "Counted" = "black"),
+    labels = c("Estimated" = "Estimated age for Pb", "Counted" = "Counted age")
+  ) +
+  scale_shape_manual(
+    values = c("Estimated" = 16, "Counted" = 16),
+    labels = c("Estimated" = "Estimated age for Pb", "Counted" = "Counted age")
+  ) +
+  scale_size_manual(
+    values = c("Estimated" = 1.8, "Counted" = 2.8),
+    labels = c("Estimated" = "Estimated age for Pb", "Counted" = "Counted age")
+  ) +
+  guides(
+    color = guide_legend(order = 1),
+    shape = "none",
+    size = "none"
+  ) +
+  labs(x = " ", y = "Age", title = " ") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_text(size = 13),
+    legend.text = element_text(size = 20),
+    axis.title.y = element_text(size = 12)
+  )
+
+p_Pb
+```
+
+```{r}
+p_Sr <- ggplot(filter(age_df, signal == "Sr" | is.na(signal)), 
+       aes(x = factor(whale_id), y = age)) +
+  geom_line(aes(group = whale_id), color = "gray80", linewidth = 0.5) +
+  geom_point(aes(color = method, shape = method, size = method)) +
+  scale_color_manual(
+    values = c("Estimated" = "#619CFF", "Counted" = "black"),
+    labels = c("Estimated" = "Estimated age for Sr", "Counted" = "Counted age")
+  ) +
+  scale_shape_manual(
+    values = c("Estimated" = 16, "Counted" = 16),
+    labels = c("Estimated" = "Estimated age for Sr", "Counted" = "Counted age")
+  ) +
+  scale_size_manual(
+    values = c("Estimated" = 1.8, "Counted" = 2.8),
+    labels = c("Estimated" = "Estimated age for Sr", "Counted" = "Counted age")
+  ) +
+  guides(
+    color = guide_legend(order = 1),
+    shape = "none",
+    size = "none"
+  ) +
+  labs(x = " ", y = "Age", title = " ") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    axis.text = element_text(size = 13),
+    legend.text = element_text(size = 20),
+    axis.title.y = element_text(size = 12)
+  )
+
+p_Sr
+```
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/cover_under_fit_age_combined.png", plot = p_combined, width = 8, height = 6, dpi = 300)
+
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/cover_under_fit_age_Ba.png", plot = p_Ba, width = 8, height = 6, dpi = 300)
+
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/cover_under_fit_age_Pb.png", plot = p_Pb, width = 8, height = 6, dpi = 300)
+
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/cover_under_fit_age_Sr.png", plot = p_Sr, width = 8, height = 6, dpi = 300)
+```
+

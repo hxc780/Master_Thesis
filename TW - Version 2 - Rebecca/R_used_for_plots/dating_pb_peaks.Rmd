@@ -1,0 +1,104 @@
+---
+title: "plots"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+
+# henter data ind så jeg kan få elapsed time for merged så jeg kan joine på den
+```{r}
+delta <- 1
+df_Sr <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Sr/data_210163.csv")
+df_Ba <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Ba/data_210163.csv")
+df_Pb <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Pb/data_210163.csv")
+```
+
+```{r}
+# Load raw data for Pb
+Y_Sr <- df_Sr %>% select(no_trend) %>% unlist()
+Y_Ba <- df_Ba %>% select(no_trend) %>% unlist()
+Y_Pb <- df_Pb %>% select(no_trend) %>% unlist()
+
+
+# std_Y_Pb <- sd(Y_Pb) # save for later (if we want absolute concentration)
+# mean_Y_Pb <- mean(Y_Pb) # save for later (if we want absolute concentration)
+# Y_Pb <- (Y_Pb-mean_Y_Pb)/std_Y_Pb # standardize signal
+# vA_Pb <- AmpEstimation(Y_Pb) # Estimate varying amplitude
+# Z_Pb <- Y_Pb/vA_Pb # Define normalized signal
+```
+
+
+```{r}
+df_Sr_proc <- tibble(Elapsed_DIV_Time = df_Sr$Elapsed_DIV_Time, Y_Sr = Y_Sr)
+df_Ba_proc <- tibble(Elapsed_DIV_Time = df_Ba$Elapsed_DIV_Time, Y_Ba = Y_Ba)
+df_Pb_proc <- tibble(Elapsed_DIV_Time = df_Pb$Elapsed_DIV_Time, Y_Pb = Y_Pb)
+```
+
+
+
+Merger først mine datasæts så de starter det samme sted:
+```{r}
+merged_df <- full_join(df_Sr_proc, df_Ba_proc, by = "Elapsed_DIV_Time") %>%
+             full_join(df_Pb_proc, by = "Elapsed_DIV_Time") %>%
+             arrange(Elapsed_DIV_Time)
+
+sum(is.na(merged_df$Y_Pb))
+```
+
+
+# Henter data ind, så jeg kan få Y og g
+```{r}
+warp.obj_Merged_210163 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Merged/210163/210163_warp_obj_saved.rds")
+```
+
+laver en dataframe hvor jeg tilføjer elapsed time og signal fra pb til mine fittede værdier i warp.obj
+```{r}
+plot_df <- data.frame(
+  Elapsed_time = merged_df$Elapsed_DIV_Time,
+  Y_raw = warp.obj_Merged_210163$Y,
+  Y_fitted = warp.obj_Merged_210163$Y.hat,
+  gx_hat = warp.obj_Merged_210163$gx.hat,
+  Pb_raw = merged_df$Y_Pb
+)
+```
+
+
+# Laver time warping på det merged signal
+```{r}
+plot_df$time_warp <- 2021 - (max(plot_df$gx_hat) - plot_df$gx_hat)/(2*pi)
+```
+
+```{r}
+ggplot(data = plot_df, aes(x = time_warp, y = Pb_raw)) +
+  geom_line(color = "black", size = 0.6) +
+  labs(title = "", x = "Years", y = "") +
+  scale_x_continuous(breaks = seq(1960, 2030, by = 1)) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(size = 20, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 16),
+    axis.title = element_text(size = 18)
+  )
+
+```
+
+
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Peak_Data/NEW_time_warped_210163.png", width = 8, height = 5, dpi = 300)
+```

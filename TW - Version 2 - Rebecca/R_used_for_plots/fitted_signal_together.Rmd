@@ -1,0 +1,109 @@
+---
+title: "Fitted Signals Together"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(pomp)
+library(foreach)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+
+
+# Henter data ind, så jeg kan få Elapsed_time
+```{r}
+Sr_510158 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Sr/data_510158.csv")
+Ba_510158 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Ba/data_510158.csv")
+Pb_510158 <- read.csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/Datasets_NEW/Pb/data_510158.csv")
+```
+
+# Henter data ind, så jeg kan få Y og g
+```{r}
+warp.obj_Sr_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots/A free/Sr/510158/510158_warp_obj_saved.rds")
+warp.obj_Ba_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots/A free/Ba/510158/510158_warp_obj_saved.rds")
+warp.obj_Pb_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots/A free/Pb/510158/510158_warp_obj_saved.rds")
+warp.obj_merged_510158 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots/merged_signals/510158/510158_warp_obj_saved.rds")
+```
+
+
+# Individuelle dataframes for hvert element, så jeg kan styre at hvis Ba har fået fjernet 10 punkter i starten, så starter g-linjen 10 punkter senere på x-aksen 
+```{r}
+df_Sr_510158 <- data.frame(
+                    Elapsed_Time = Sr_510158$Elapsed_DIV_Time,
+                    Y = warp.obj_Sr_510158$Y,
+                    Y_hat = warp.obj_Sr_510158$Y.hat,
+                    gx_hat = warp.obj_Sr_510158$gx.hat / (2 * pi),
+                    Element = "Sr")
+
+df_Ba_510158 <- data.frame(
+                    Elapsed_Time = Ba_510158$Elapsed_DIV_Time,
+                    Y = warp.obj_Ba_510158$Y,
+                    Y_hat = warp.obj_Ba_510158$Y.hat,
+                    gx_hat = warp.obj_Ba_510158$gx.hat / (2 * pi),
+                    Element = "Ba")
+
+df_Pb_510158 <- data.frame(
+                    Elapsed_Time = Pb_510158$Elapsed_DIV_Time,
+                    Y = warp.obj_Pb_510158$Y,
+                    Y_hat = warp.obj_Pb_510158$Y.hat,
+                    gx_hat = warp.obj_Pb_510158$gx.hat / (2 * pi),
+                    Element = "Pb")
+
+# Create a named list of time vectors
+time_vectors <- list(
+  Pb = Pb_510158$Elapsed_DIV_Time,
+  Sr = Sr_510158$Elapsed_DIV_Time,
+  Ba = Ba_510158$Elapsed_DIV_Time
+)
+
+# Find the name of the longest one
+longest_element <- names(which.max(sapply(time_vectors, length)))
+
+# Extract the longest time vector
+Elapsed_Time_longest <- time_vectors[[longest_element]]
+
+# Create the merged data frame
+df_merged_510158 <- data.frame(
+                        Elapsed_Time = Elapsed_Time_longest,
+                        Y = warp.obj_merged_510158$Y,
+                        Y_hat = warp.obj_merged_510158$Y.hat,
+                        gx_hat = warp.obj_merged_510158$gx.hat / (2 * pi),
+                        Element = "Combined Signal")
+```
+
+
+```{r}
+ggplot() +
+  geom_line(data = df_merged_510158, aes(x = Elapsed_Time, y = Y, color = "raw signal whale 510158"), size = 0.6, alpha = 0.3)+
+  geom_line(data = df_merged_510158, aes(x = Elapsed_Time, y = Y_hat, color = "Fitted combined signal"), size = 0.6) +
+  geom_line(data = df_Sr_510158, aes(x = Elapsed_Time, y = Y_hat, color = "Fitted Sr"), size = 0.8) +
+  geom_line(data = df_Ba_510158, aes(x = Elapsed_Time, y = Y_hat, color = "Fitted Ba"), size = 0.8) +
+  geom_line(data = df_Pb_510158, aes(x = Elapsed_Time, y = Y_hat, color = "Fitted Pb"), size = 0.8) +
+  scale_color_manual(values = c(
+    "Fitted combined signal" = "#C74CFF",
+    "Fitted Sr" = "#619CFF",
+    "Fitted Ba" = "#F8766D",
+    "Fitted Pb" = "#00BA38",
+    "raw signal whale 510158" = "lightgrey"
+  )) +
+  labs(title = "Fitted signal for each element and the combined signal 510158",
+       x = "Elapsed Time", y = "Signal", color = " ") +
+  theme_bw()
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots/fitted_signal_together/whale510158.png", width = 8, height = 5, dpi = 300)
+```
+
+

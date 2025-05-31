@@ -1,0 +1,373 @@
+---
+title: "Model Validation and diagnostics"
+author: "Rebecca Holm"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r}
+warp.obj_210151 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Merged/210151/210151_warp_obj_saved.rds")
+```
+
+```{r}
+df <- data.frame(
+                Y = warp.obj_210151$Y,
+                fitted = warp.obj_210151$Y.hat,
+                gx_hat_age = warp.obj_210151$gx.hat / (2 * pi),
+                gx_hat_raw = warp.obj_210151$gx.hat,
+                residuals = warp.obj_210151$Y - warp.obj_210151$Y.hat,
+                tooth = 210151)
+  # hent data. Data skal indeholde variable tooth, fitted (=fittede værdier), residuals.
+df$tooth <- factor(df$tooth)
+
+plot(df$Y, type="l")
+lines(df$fitted, col="red")
+```
+
+
+## Residual plot
+
+```{r}
+p1 <- ggplot(df, aes(x = fitted, y = residuals)) +
+  geom_point(shape = 20, size = 1.5, color = "black", alpha = 0.75) +  
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size=1) +
+  xlab("Fitted Values") + ylab("Residuals") +
+  ggtitle("") +
+  facet_wrap(. ~ tooth, scales = "free") +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.text.x = element_blank(),  
+    axis.text.y = element_blank(), 
+    axis.ticks = element_blank(),  
+    axis.title = element_text(size = 16),
+    plot.title = element_text(size = 20),
+    strip.text = element_text(size = 16),
+    panel.grid.minor = element_blank(),  
+    panel.grid.major = element_line(color = "grey85")  
+  )
+
+p1
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/ResiduaPlot_210151.png", plot = p1, device = "png", width = 8, height = 8, units = "in", bg="white")
+```
+
+
+## QQ plot
+
+```{r}
+p2 <- ggplot(df, aes(sample = residuals)) +
+  stat_qq(distribution = qnorm, shape = 20, size = 1.5, color = "black", alpha = 0.7) +
+  stat_qq_line(distribution = qnorm, color = "red", linetype = "dashed", linewidth = 0.8) +  # QQ line
+  xlab("Theoretical Quantiles") +
+  ylab("Sample Quantiles") +
+  ggtitle("") +
+  facet_wrap(. ~ tooth, scales = "free") +
+  theme_minimal(base_size = 16) +
+  theme(
+    axis.text.x = element_blank(),  
+    axis.text.y = element_blank(),  
+    axis.ticks = element_blank(),   
+    axis.title = element_text(size = 16),
+    plot.title = element_text(size = 20),
+    strip.text = element_text(size = 16),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(color = "grey85")
+  )
+
+p2
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/QQPlot_210151.png", plot = p2, device = "png", width = 8, height = 8, units = "in", bg="white")
+```
+
+
+## Violin plot
+```{r}
+boot_data_210151 <- readRDS("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/210151_merged_bootstrap.rds")
+```
+
+```{r}
+theta_hat <- warp.obj_210151$theta.hat
+```
+
+```{r}
+param_names <- c("beta", "omega", "a", "A", "b", "sigma", "fellerfrac")
+theta_hat <- warp.obj_210151$theta.hat
+
+compute_reldiff <- function(th,tb){
+  b_hat <- th[["b"]]
+  b_boot <- tb[["b"]]
+  
+  # kortest afstand på enhedscirklen
+  d <- abs((b_boot - b_hat) %% (2*pi))
+  b_diff <- pmin(d, 2*pi - d)/pi # relative forskel (divider med den maksimale forskel: pi)
+  
+  rho_hat <- exp(-th[["beta"]])
+  rho_boot <- exp(-tb[["beta"]])
+  
+  rho_diff <- (rho_boot - rho_hat)/rho_hat
+  reldiff <- (tb[-c(1,5)] - th[-c(1,5)])/th[-c(1,5)]
+  
+  return(c(rho_diff, reldiff[-5], b_diff))
+}
+
+df_est <-   data.frame(
+    parameter = character(),
+    value_rel = numeric(),
+    tooth = numeric(),
+    bootstrap_rep = numeric()
+  )
+for(m in 1:10){
+  theta_boot <- boot_data_210151$fitting_objects[[m]]$theta.hat
+  param_names <- c("ρ","ω","a","A","σ","b")
+  df_est <- rbind(df_est,   data.frame(
+    parameter = param_names,
+    value_rel = compute_reldiff(theta_hat, theta_boot),
+    tooth = 210151,
+    bootstrap_rep = m
+  ))
+}
+```
+
+```{r}
+# Bemærk: hvis du får ekstreme værdier får nogle value_rel, kan du overveje om du skal trimme dit violin plot, i.e. lave en øvre grænse.
+
+custom_palette <- c("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b",
+                    "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#ffaec0", "#ffbb78",
+                    "#98df8a", "#ff9896", "#c5b0d5", "#c49c94", "#f7b6d2", "#dbdb8d",
+                    "#9edae5", "#ad494a", "#393b79", "#e31a1c", "#fd8d3c", "#ffffb3",
+                    "#800026", "#bd0026", "#f7fcb9", "#1b9e77", "#fdae61", "#b2df8a",
+                    "#33a02c", "#fb9a99", "#a6cee3", "#0082c8", "#e6beff", "#f7f7f7",
+                    "#cab2d6", "#ff7f00", "#fdbf6f", "#d9d9d9", "#ffff99")
+my_palette <- custom_palette[1:6] # antal parametre
+
+ggplot(df_est, aes(x = as.factor(parameter), y = value_rel, fill = as.factor(parameter))) +
+    geom_violin(trim = TRUE, alpha = 0.7) +
+    geom_boxplot(width = 0.1, outlier.shape = NA)+
+    geom_hline(yintercept=0, linetype="dashed")+
+    scale_fill_manual(values = my_palette) +
+    labs(title = NULL, x=NULL) +  # fjern x= NULL for at vise labels for begge akser
+    theme_minimal() +
+    ylab(expression((theta[boot]-hat(theta))/hat(theta)))+
+    theme(    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 20),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 24),
+    strip.text = element_blank(),
+    axis.text.y = element_text(size = 20))
+```
+# splitter op så b er på sin egen akse
+```{r}
+df_est$param_group <- ifelse(df_est$parameter == "b", "b", "Parameters")
+
+# Plot with faceting
+ggplot(df_est, aes(x = parameter, y = value_rel, fill = parameter)) +
+  geom_violin(trim = TRUE, alpha = 0.7) +
+  geom_boxplot(width = 0.1, outlier.shape = NA) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_fill_manual(values = my_palette) +
+  facet_wrap(~ param_group, scales = "free_y", ncol = 1) +
+  labs(title = NULL, x = NULL, y = expression((theta[boot] - hat(theta)) / hat(theta))) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 20),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 24),
+    strip.text = element_blank(),
+    axis.text.y = element_text(size = 20)
+  )
+
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/violin_plots_210151.png", last_plot(), width = 20, height = 10, bg="white")
+```
+
+
+
+## Alders tætheder
+
+```{r}
+df_age <- data.frame(
+  tooth = 210151,
+  age = unlist(boot_data_210151$total_cycles),
+  meanAge = 14.04, #prøvede mean(boot_data_210151$total_cycles) det virkede ikke
+  GLGs = 17
+)# hent alders data
+```
+
+
+```{r}
+# NB. Det er muligt du skal justere nedenstående værdier for at få et optimalt plot window:
+k <- 1 # fra min age til max age med længde k
+xmin <- 1
+xmax <- 20
+
+ggplot(df_age, aes(x = age)) +
+  geom_density(fill = "cyan", color = "black", alpha = 0.5)+
+  geom_vline(aes(xintercept = meanAge), linewidth = 1.5, col = "red") +
+  geom_vline(aes(xintercept = GLGs), linewidth = 1.5, col = "darkorange") +
+  scale_x_continuous(
+    limits = c(xmin, xmax), 
+    breaks = round(seq(xmin, xmax, by = k), 1)
+  )+
+  theme_minimal(base_size = 16) +  
+  theme(
+    strip.text.y = element_text(angle = 0, face = "bold", size = 14), 
+    axis.text.x = element_text(size = 10, angle = 0, hjust = 1),  
+    axis.title.x = element_text(size = 14, face = "bold"),  
+    axis.text.y = element_blank(),          
+    axis.ticks.y = element_blank(),
+    axis.title.x.top = element_text(vjust=7),
+    axis.text.x.top = element_text(vjust=10)
+  ) +
+  ylab("frequency") +
+  xlab("age (years)")
+```
+
+# adding a legend
+```{r}
+k <- 1
+xmin <- 1
+xmax <- 20
+
+ggplot(df_age, aes(x = age)) +
+  geom_density(fill = "cyan", color = "black", alpha = 0.5) +
+  geom_vline(aes(xintercept = meanAge, color = "Estimated Age"), linewidth = 1) +
+  geom_vline(aes(xintercept = GLGs, color = "Counted Age"), linewidth = 1) +
+  scale_color_manual(name = NULL,  # optional: remove legend title
+                     values = c("Estimated Age" = "red", 
+                                "Counted Age" = "darkorange")) +
+  scale_x_continuous(
+    limits = c(xmin, xmax), 
+    breaks = round(seq(xmin, xmax, by = k), 1)
+  ) +
+  theme_minimal(base_size = 16) +  
+  theme(
+    legend.position = "bottom",
+    strip.text.y = element_text(angle = 0, face = "bold", size = 14), 
+    axis.text.x = element_text(size = 10, angle = 0, hjust = 1),  
+    axis.title.x = element_text(size = 10),  
+    axis.title.y = element_text(size = 10),  
+    legend.text = element_text(size = 10),
+    axis.text.y = element_blank(),          
+    axis.ticks.y = element_blank(),
+    axis.title.x.top = element_text(vjust = 7),
+    axis.text.x.top = element_text(vjust = 10)
+  ) +
+  ylab("Frequency") +
+  xlab("Age in years") + 
+  guides(color = guide_legend(override.aes = list(linewidth = 0.5)))
+```
+
+
+```{r}
+ggsave("/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Used for thesis/agedens_210151.png", width=6, height=4, dpi=300, bg="white")
+```
+
+
+
+
+# ########################### Looper igennem for residualplots og QQ plots ##########################################
+
+```{r}
+library(ggplot2)
+
+# Whale IDs
+whale_ids <- c(
+  15, 18, 21, 26, 99, 100, 102, 112, 121, 127,
+  133, 135, 137, 146, 157, 164, 169, 186, 188, 215, 210101,
+  210106, 210110, 210111, 210113, 210114, 210122, 210124,
+  210125, 210127, 210129, 210149, 210151, 210160, 210161,
+  210163, 210169, 210172, 210174, 510158
+)
+
+# Base paths
+input_dir <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/Ba"
+output_dir1 <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/residuals/Ba"
+output_dir2 <- "/Users/rebeccaholm/Desktop/MatØk/Speciale/TW - Version 2 - Rebecca/Plots_NEW/QQ/Ba"
+
+# Loop through each whale
+for (id in whale_ids) {
+  file_path <- file.path(input_dir, as.character(id), paste0(id, "_warp_obj_saved.rds"))
+  
+  if (!file.exists(file_path)) {
+    warning(paste("Missing file for tooth", id))
+    next
+  }
+  
+  warp.obj <- readRDS(file_path)
+  
+  df <- data.frame(
+    Y = warp.obj$Y,
+    fitted = warp.obj$Y.hat,
+    gx_hat_age = warp.obj$gx.hat / (2 * pi),
+    gx_hat_raw = warp.obj$gx.hat,
+    residuals = warp.obj$Y - warp.obj$Y.hat,
+    tooth = factor(id)
+  )
+
+  ## Residual Plot
+  p1 <- ggplot(df, aes(x = fitted, y = residuals)) +
+    geom_point(shape = 20, size = 1.5, color = "black", alpha = 0.75) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 1) +
+    xlab("Fitted Values") + ylab("Residuals") +
+    facet_wrap(. ~ tooth, scales = "free") +
+    theme_minimal(base_size = 16) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_text(size = 16),
+      plot.title = element_text(size = 20),
+      strip.text = element_text(size = 16),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "grey85")
+    )
+  
+  ggsave(
+    filename = file.path(output_dir1, paste0("Ba_ResiduaPlot_", id, ".png")),
+    plot = p1, device = "png", width = 8, height = 8, units = "in", bg = "white"
+  )
+
+  ## QQ Plot
+  p2 <- ggplot(df, aes(sample = residuals)) +
+    stat_qq(distribution = qnorm, shape = 20, size = 1.5, color = "black", alpha = 0.7) +
+    stat_qq_line(distribution = qnorm, color = "red", linetype = "dashed", linewidth = 0.8) +
+    xlab("Theoretical Quantiles") + ylab("Sample Quantiles") +
+    facet_wrap(. ~ tooth, scales = "free") +
+    theme_minimal(base_size = 16) +
+    theme(
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title = element_text(size = 16),
+      plot.title = element_text(size = 20),
+      strip.text = element_text(size = 16),
+      panel.grid.minor = element_blank(),
+      panel.grid.major = element_line(color = "grey85")
+    )
+  
+  ggsave(
+    filename = file.path(output_dir2, paste0("Ba_QQPlot_", id, ".png")),
+    plot = p2, device = "png", width = 8, height = 8, units = "in", bg = "white"
+  )
+}
+```
+
