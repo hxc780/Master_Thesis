@@ -1,0 +1,329 @@
+---
+title: "Removing_outliers"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We are going to remove the outliers for all whales. We use the already plotted lineplots. 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(dplyr)
+```
+
+
+# loding in the data
+```{r}
+merged_data_NEW <- read_csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/merged_data_NEW.csv")
+```
+
+
+
+
+# ############################### 21 ####################################
+```{r}
+data_21 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_21") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+```
+
+
+```{r}
+data_21 <- data_21[-1250,]
+data_21 <- data_21[-1249,]
+data_21 <- data_21[-1248,]
+data_21 <- data_21[-2,]
+data_21 <- data_21[-1,]
+
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+```
+
+
+```{r}
+data_21$millimeters <- seq(0.1, by=nrow(data_21)/10000, length.out=nrow(data_21))
+
+# Define the element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_21), c("whale_index", "millimeters", "row_number"))
+
+# Loop through each element and create a separate folder + plot
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+ folder_path <- file.path(getwd(), element)
+  
+  # Create the folder if it doesn't exist
+  if (!dir.exists(folder_path)) {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  # Create the plot
+  p <- ggplot(data_21, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_21"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # This will display each plot one by one
+  
+  # Save the plot in its respective folder
+  #ggsave(filename = file.path(folder_path, paste0(element, "_21_plot.png")), 
+  #       plot = p, width = 8, height = 6)
+}
+```
+
+
+
+
+# ############################### 100 ####################################
+```{r}
+data_100 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_100") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+```
+
+```{r}
+data_100 <- data_100[-1,]
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+```
+
+
+```{r}
+data_100$millimeters <- seq(0.1, by=nrow(data_100)/10000, length.out=nrow(data_100))
+
+# Define the element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_100), c("whale_index", "millimeters", "row_number"))
+
+# Loop through each element and create a separate folder + plot
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path(getwd(), element)
+
+  # Create the plot
+  p <- ggplot(data_100, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_100"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # This will display each plot one by one
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_100_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+```
+
+
+# ############################### 112 ####################################
+```{r}
+data_112 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_112") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+```
+
+```{r}
+data_112 <- data_112[-1574,]
+data_112 <- data_112[-1573,]
+data_112 <- data_112[-3,]
+data_112 <- data_112[-2,]
+data_112 <- data_112[-1,]
+
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+```
+
+
+```{r}
+data_112$millimeters <- seq(0.1, by=nrow(data_112)/10000, length.out=nrow(data_112))
+
+# Define the element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_112), c("whale_index", "millimeters", "row_number"))
+
+# Loop through each element and create a separate folder + plot
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path(getwd(), element)
+  
+  # Create the plot
+  p <- ggplot(data_112, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_112"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # This will display each plot one by one
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_112_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+```
+
+
+
+# ############################### 210101 ####################################
+```{r}
+data_210101 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210101") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+```
+
+```{r}
+data_210101 <- data_210101[-1568,]
+data_210101 <- data_210101[-1567,]
+data_210101 <- data_210101[-1566,]
+data_210101 <- data_210101[-2,]
+data_210101 <- data_210101[-1,]
+
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+```
+
+
+```{r}
+data_210101$millimeters <- seq(0.1, by=nrow(data_210101)/10000, length.out=nrow(data_210101))
+
+# Define the element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_210101), c("whale_index", "millimeters", "row_number"))
+
+# Loop through each element and create a separate folder + plot
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path(getwd(), element)
+
+  # Create the plot
+  p <- ggplot(data_210101, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210101"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # This will display each plot one by one
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_210101_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+```
+
+
+# ############################### 210106 ####################################
+```{r}
+data_210106 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210106") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+```
+
+```{r}
+data_210106 <- data_210106[-1460,]
+data_210106 <- data_210106[-1459,]
+data_210106 <- data_210106[-2,]
+data_210106 <- data_210106[-1,]
+
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+```
+
+
+```{r}
+data_210106$millimeters <- seq(0.1, by=nrow(data_210106)/10000, length.out=nrow(data_210106))
+
+# Define the element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_210106), c("whale_index", "millimeters", "row_number"))
+
+# Loop through each element and create a separate folder + plot
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path(getwd(), element)
+  
+  # Create the plot
+  p <- ggplot(data_210106, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210106"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # This will display each plot one by one
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_210106_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+```
+
+
+
+# ############################### 210110 ####################################
+```{r}
+data_210110 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210110") %>%
+  select(whale_index, Li_DIV_Ca, B_DIV_Ca, Mg_DIV_Ca, Al_DIV_Ca, P_DIV_Ca, K_DIV_Ca, Ti_DIV_Ca, Cr_DIV_Ca, Mn_DIV_Ca, Fe_DIV_Ca, Co_DIV_Ca, Cu_DIV_Ca, Zn_DIV_Ca, Se_DIV_Ca, Rb_DIV_Ca, Sr_DIV_Ca, Ba_DIV_Ca, Pb_DIV_Ca, U_DIV_Ca)
+
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+```
+
+```{r}
+data_210110 <- data_210110[-1810,]
+data_210110 <- data_210110[-1809,]
+data_210110 <- data_210110[-1808,]
+data_210110 <- data_210110[-2,]
+data_210110 <- data_210110[-1,]
+
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+```
+
+
+```{r}
+data_210110$millimeters <- seq(0.1, by=nrow(data_210110)/10000, length.out=nrow(data_210110))
+
+
+# Define the element columns (excluding non-element columns)
+element_columns <- setdiff(colnames(data_210110), c("whale_index", "millimeters", "row_number"))
+
+# Loop through each element and create a separate folder + plot
+for (element in element_columns) {
+  
+  # Define the folder path (each folder is named after the element)
+  folder_path <- file.path(getwd(), element)
+  
+  # Create the plot
+  p <- ggplot(data_210110, aes(x = millimeters, y = .data[[element]])) +
+    geom_line() +
+    labs(title = paste(element, "vs Artificial Millimeters for SMP_210110"),
+         x = "Millimeters",
+         y = element) +
+    theme_bw()
+  
+  print(p)  # This will display each plot one by one
+  
+  # Save the plot in its respective folder
+  ggsave(filename = file.path(folder_path, paste0(element, "_210110_plot.png")), 
+         plot = p, width = 8, height = 6)
+}
+```
+
+

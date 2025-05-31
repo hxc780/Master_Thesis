@@ -1,0 +1,2790 @@
+---
+title: "Removing_outliers"
+author: "Rebecca Holm"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We are going to remove the outliers for all whales. We use the already plotted pointplots. 
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(dplyr)
+```
+
+
+# loding in the data
+```{r}
+merged_data_NEW <- read_csv("/Users/rebeccaholm/Desktop/MatØk/Speciale/R/merged_data_NEW.csv")
+```
+
+
+
+For the outliers that have another outlier as a neighbor we are going to do linear interpolation. If the first and last observation is an outlier I am going to do linear interpolation based on the two nearest "non-outlier" observations that are infront/behind the first/last observation. 
+
+# ############################### 15 ####################################
+```{r}
+data_15 <-merged_data_NEW %>%
+    filter(whale_index == "SMP_15") %>%
+    select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_15$row_number <- seq(1, by=1, length.out=nrow(data_15))
+
+subset(data_15, Pb_DIV_Ca > 0.001)
+subset(data_15, Pb_DIV_Ca < 0.00)
+```
+
+
+```{r}
+data_15$Pb_DIV_Ca[1423] <- data_15$Pb_DIV_Ca[1422] + 1 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1424] <- data_15$Pb_DIV_Ca[1422] + 2 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1425] <- data_15$Pb_DIV_Ca[1422] + 3 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1426] <- data_15$Pb_DIV_Ca[1422] + 4 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1427] <- data_15$Pb_DIV_Ca[1422] + 5 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1428] <- data_15$Pb_DIV_Ca[1422] + 6 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1429] <- data_15$Pb_DIV_Ca[1422] + 7 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1430] <- data_15$Pb_DIV_Ca[1422] + 8 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1431] <- data_15$Pb_DIV_Ca[1422] + 9 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15$Pb_DIV_Ca[1432] <- data_15$Pb_DIV_Ca[1422] + 10 * (data_15$Pb_DIV_Ca[1433] - data_15$Pb_DIV_Ca[1423]) / 11
+data_15 <- data_15[-c(2719:2725),]
+data_15 <- data_15[-c(1:38), ]
+
+data_15$row_number <- seq(1, by=1, length.out=nrow(data_15))
+```
+
+I do a point plot, to see if I have captured all the outliers. I have have not I go back and add more to the above code until I am satisfied. 
+
+```{r}
+data_15#####data_15)/10000, length.out=nrow(data_15))
+
+ggplot(data_15, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+I then go and fit the trend, remove the trend, divide by sd and then save the dataset, such that it can be ready to fit in the FitModel script. 
+
+```{r}
+trend_15 <- loess(data_15$Pb_DIV_Ca ~ data_15$Elapsed_DIV_Time)
+trend1_15 <- data.frame(trend_15 = trend_15$fitted, Elapsed_DIV_Time = data_15$Elapsed_DIV_Time)
+
+ggplot(data_15, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_15, aes(y= trend_15), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+When I see that the trend looks fine I create my last dataset: 
+```{r}
+# subtracting the trend
+data_15$no_trend <- data_15$Pb_DIV_Ca - trend1_15$trend_15
+
+# dividing the new timeseries with the sd(timeserie)
+data_15$nt_sd <- data_15$no_trend/sd(data_15$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_15, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_15",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_15, "data_15.csv", row.names = FALSE)
+```
+
+
+# ############################### 18 ####################################
+```{r}
+data_18 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_18") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_18$row_number <- seq(1, by=1, length.out=nrow(data_18))
+
+subset(data_18, Pb_DIV_Ca > 0.002)
+subset(data_18, Pb_DIV_Ca < 0.00)
+```
+
+
+```{r}
+data_18 <- data_18[-1508,]
+data_18 <- data_18[-3,]
+data_18 <- data_18[-2,]
+data_18 <- data_18[-1,]
+
+data_18$row_number <- seq(1, by=1, length.out=nrow(data_18))
+```
+
+
+```{r}
+data_18#####data_18)/10000, length.out=nrow(data_18))
+
+ggplot(data_18, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_18"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+
+```{r}
+trend_18 <- loess(data_18$Pb_DIV_Ca ~ data_18$Elapsed_DIV_Time)
+trend1_18 <- data.frame(trend_18 = trend_18$fitted, Elapsed_DIV_Time = data_18$Elapsed_DIV_Time)
+
+ggplot(data_18, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_18, aes(y= trend_18), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_18",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_18$no_trend <- data_18$Pb_DIV_Ca - trend1_18$trend_18
+
+# dividing the new timeseries with the sd(timeserie)
+data_18$nt_sd <- data_18$no_trend/sd(data_18$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_18, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_18",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_18, "data_18.csv", row.names = FALSE)
+```
+
+# ############################### 21 ####################################
+```{r}
+data_21 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_21") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+
+subset(data_21, Pb_DIV_Ca > 0.00003)
+subset(data_21, Pb_DIV_Ca < 0.00)
+```
+
+
+```{r}
+data_21$Pb_DIV_Ca[149] <- (data_21$Pb_DIV_Ca[150] +  data_21$Pb_DIV_Ca[148])/2
+data_21$Pb_DIV_Ca[195] <- (data_21$Pb_DIV_Ca[196] +  data_21$Pb_DIV_Ca[194])/2
+data_21$Pb_DIV_Ca[500] <- (data_21$Pb_DIV_Ca[501] +  data_21$Pb_DIV_Ca[499])/2
+data_21$Pb_DIV_Ca[577] <- (data_21$Pb_DIV_Ca[578] +  data_21$Pb_DIV_Ca[576])/2
+data_21 <- data_21[-1250,]
+data_21 <- data_21[-1249,]
+data_21 <- data_21[-1248,]
+data_21 <- data_21[-c(832:834),]
+data_21 <- data_21[-2,]
+data_21 <- data_21[-1,]
+
+data_21$row_number <- seq(1, by=1, length.out=nrow(data_21))
+```
+
+
+```{r}
+data_21#####data_21)/10000, length.out=nrow(data_21))
+
+ggplot(data_21, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_21"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_21 <- loess(data_21$Pb_DIV_Ca ~ data_21$Elapsed_DIV_Time)
+trend1_21 <- data.frame(trend_21 = trend_21$fitted, Elapsed_DIV_Time = data_21$Elapsed_DIV_Time)
+
+ggplot(data_21, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_21, aes(y= trend_21), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_21",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_21$no_trend <- data_21$Pb_DIV_Ca - trend1_21$trend_21
+
+# dividing the new timeseries with the sd(timeserie)
+data_21$nt_sd <- data_21$no_trend/sd(data_21$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_21, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_21",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_21, "data_21.csv", row.names = FALSE)
+```
+
+
+# ############################### 26 ####################################
+```{r}
+data_26 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_26") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_26$row_number <- seq(1, by=1, length.out=nrow(data_26))
+
+subset(data_26, Pb_DIV_Ca > 0.00003)
+subset(data_26, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_26 <- data_26[-1731,]
+data_26 <- data_26[-c(684:749),]
+
+
+# laver linear interpolering for 66 data punkter
+#data_26$Pb_DIV_Ca[684:749] <- data_26$Pb_DIV_Ca[683] + 
+#  ((1:66) / 67) * (data_26$Pb_DIV_Ca[750] - data_26$Pb_DIV_Ca[683])
+
+data_26 <- data_26[-3,]
+data_26 <- data_26[-2,]
+data_26 <- data_26[-1,]
+
+data_26$row_number <- seq(1, by=1, length.out=nrow(data_26))
+```
+
+
+```{r}
+data_26#####data_26)/10000, length.out=nrow(data_26))
+
+ggplot(data_26, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_26"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_26 <- loess(data_26$Pb_DIV_Ca ~ data_26$Elapsed_DIV_Time)
+trend1_26 <- data.frame(trend_26 = trend_26$fitted, Elapsed_DIV_Time = data_26$Elapsed_DIV_Time)
+
+ggplot(data_26, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_26, aes(y= trend_26), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_26",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_26$no_trend <- data_26$Pb_DIV_Ca - trend1_26$trend_26
+
+# dividing the new timeseries with the sd(timeserie)
+data_26$nt_sd <- data_26$no_trend/sd(data_26$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_26, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_26",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_26, "data_26.csv", row.names = FALSE)
+```
+
+# ############################### 99 ####################################
+```{r}
+data_99 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_99") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_99$row_number <- seq(1, by=1, length.out=nrow(data_99))
+
+subset(data_99, Pb_DIV_Ca > 0.00002)
+subset(data_99, Pb_DIV_Ca < 0.0003)
+```
+
+```{r}
+data_99 <- data_99[-c(1437:1429),]
+data_99 <- data_99[-c(1:10),]
+
+data_99$row_number <- seq(1, by=1, length.out=nrow(data_99))
+```
+
+
+```{r}
+data_99#####data_99)/10000, length.out=nrow(data_99))
+
+ggplot(data_99, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_99"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_99 <- loess(data_99$Pb_DIV_Ca ~ data_99$Elapsed_DIV_Time)
+trend1_99 <- data.frame(trend_99 = trend_99$fitted, Elapsed_DIV_Time = data_99$Elapsed_DIV_Time)
+
+ggplot(data_99, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_99, aes(y= trend_99), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_99",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_99$no_trend <- data_99$Pb_DIV_Ca - trend1_99$trend_99
+
+# dividing the new timeseries with the sd(timeserie)
+data_99$nt_sd <- data_99$no_trend/sd(data_99$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_99, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_99",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_99, "data_99.csv", row.names = FALSE)
+```
+
+# ############################### 100 ####################################
+```{r}
+data_100 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_100") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+
+subset(data_100, Pb_DIV_Ca > 0.0000125)
+subset(data_100, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_100 <- data_100[-c(736:938),]
+data_100 <- data_100[-1,]
+data_100$row_number <- seq(1, by=1, length.out=nrow(data_100))
+```
+
+
+```{r}
+data_100#####data_100)/10000, length.out=nrow(data_100))
+
+ggplot(data_100, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_100"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_100 <- loess(data_100$Pb_DIV_Ca ~ data_100$Elapsed_DIV_Time)
+trend1_100 <- data.frame(trend_100 = trend_100$fitted, Elapsed_DIV_Time = data_100$Elapsed_DIV_Time)
+
+ggplot(data_100, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_100, aes(y= trend_100), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_100",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_100$no_trend <- data_100$Pb_DIV_Ca - trend1_100$trend_100
+
+# dividing the new timeseries with the sd(timeserie)
+data_100$nt_sd <- data_100$no_trend/sd(data_100$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_100, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_100",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_100, "data_100.csv", row.names = FALSE)
+```
+
+# ############################### 102 ####################################
+```{r}
+data_102 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_102") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_102$row_number <- seq(1, by=1, length.out=nrow(data_102))
+
+subset(data_102, Pb_DIV_Ca > 0.00004)
+subset(data_102, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+# laver linear interpolering for mange data punkter
+#data_102$Pb_DIV_Ca[1533:1537] <- data_26$Pb_DIV_Ca[1532] + 
+#  ((1:5) / 6) * (data_26$Pb_DIV_Ca[1538] - data_26$Pb_DIV_Ca[1532])
+data_102 <- data_102[-c(1536:1543),]
+data_102 <- data_102[-3,]
+data_102 <- data_102[-2,]
+data_102 <- data_102[-1,]
+
+data_102$row_number <- seq(1, by=1, length.out=nrow(data_102))
+```
+
+
+```{r}
+data_102#####data_102)/10000, length.out=nrow(data_102))
+
+ggplot(data_102, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_102"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_102 <- loess(data_102$Pb_DIV_Ca ~ data_102$Elapsed_DIV_Time)
+trend1_102 <- data.frame(trend_102 = trend_102$fitted, Elapsed_DIV_Time = data_102$Elapsed_DIV_Time)
+
+ggplot(data_102, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_102, aes(y= trend_102), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_102",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_102$no_trend <- data_102$Pb_DIV_Ca - trend1_102$trend_102
+
+# dividing the new timeseries with the sd(timeserie)
+data_102$nt_sd <- data_102$no_trend/sd(data_102$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_102, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_102",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_102, "data_102.csv", row.names = FALSE)
+```
+
+
+# ############################### 112 ####################################
+```{r}
+data_112 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_112") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+
+subset(data_112, Pb_DIV_Ca > 0.000015)
+subset(data_112, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_112$Pb_DIV_Ca[922] <- (data_112$Pb_DIV_Ca[923] + data_112$Pb_DIV_Ca[921])/2
+data_112$Pb_DIV_Ca[884] <- (data_112$Pb_DIV_Ca[885] + data_112$Pb_DIV_Ca[883])/2
+data_112 <- data_112[-c(1456:1574),]
+data_112 <- data_112[-3,]
+data_112 <- data_112[-2,]
+data_112 <- data_112[-1,]
+
+data_112$row_number <- seq(1, by=1, length.out=nrow(data_112))
+```
+
+
+```{r}
+data_112#####data_112)/10000, length.out=nrow(data_112))
+
+ggplot(data_112, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_112"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_112 <- loess(data_112$Pb_DIV_Ca ~ data_112$Elapsed_DIV_Time)
+trend1_112 <- data.frame(trend_112 = trend_112$fitted, Elapsed_DIV_Time = data_112$Elapsed_DIV_Time)
+
+ggplot(data_112, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_112, aes(y= trend_112), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_112",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_112$no_trend <- data_112$Pb_DIV_Ca - trend1_112$trend_112
+
+# dividing the new timeseries with the sd(timeserie)
+data_112$nt_sd <- data_112$no_trend/sd(data_112$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_112, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_112",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_112, "data_112.csv", row.names = FALSE)
+```
+
+
+# ############################### 121 ####################################
+```{r}
+data_121 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_121") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_121$row_number <- seq(1, by=1, length.out=nrow(data_121))
+
+subset(data_121, Pb_DIV_Ca > 0.00001)
+subset(data_121, Pb_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_121$Pb_DIV_Ca[609] <- (data_121$Pb_DIV_Ca[608] + data_121$Pb_DIV_Ca[610])/2
+data_121$Pb_DIV_Ca[613] <- (data_121$Pb_DIV_Ca[612] + data_121$Pb_DIV_Ca[614])/2
+
+data_121 <- data_121[-c(1210:1257),]
+data_121 <- data_121[-2,]
+data_121 <- data_121[-1,]
+
+data_121$row_number <- seq(1, by=1, length.out=nrow(data_121))
+```
+
+
+```{r}
+data_121#####data_121)/10000, length.out=nrow(data_121))
+
+ggplot(data_121, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_121"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_121 <- loess(data_121$Pb_DIV_Ca ~ data_121$Elapsed_DIV_Time)
+trend1_121 <- data.frame(trend_121 = trend_121$fitted, Elapsed_DIV_Time = data_121$Elapsed_DIV_Time)
+
+ggplot(data_121, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_121, aes(y= trend_121), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_121",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_121$no_trend <- data_121$Pb_DIV_Ca - trend1_121$trend_121
+
+# dividing the new timeseries with the sd(timeserie)
+data_121$nt_sd <- data_121$no_trend/sd(data_121$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_121, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_121",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_121, "data_121.csv", row.names = FALSE)
+```
+
+
+# ############################### 127 ####################################
+```{r}
+data_127 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_127") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_127$row_number <- seq(1, by=1, length.out=nrow(data_127))
+
+subset(data_127, Pb_DIV_Ca > 0.00006)
+subset(data_127, Pb_DIV_Ca < 0.000375)
+```
+
+```{r}
+data_127$Pb_DIV_Ca[1715]    <- (data_127$Pb_DIV_Ca[1714] + data_127$Pb_DIV_Ca[1716]) / 2
+
+data_127$Pb_DIV_Ca[1943:1944] <- data_127$Pb_DIV_Ca[1942] + 
+  ((1:2) / 3) * (data_127$Pb_DIV_Ca[1945] - data_127$Pb_DIV_Ca[1942])
+
+data_127$Pb_DIV_Ca[121:122] <- data_127$Pb_DIV_Ca[120] + 
+  ((1:2) / 3) * (data_127$Pb_DIV_Ca[123] - data_127$Pb_DIV_Ca[120])
+
+data_127 <- data_127[-c(432:471),]
+
+data_127 <- data_127[-1,]
+```
+
+
+```{r}
+data_127#####data_127)/10000, length.out=nrow(data_127))
+
+ggplot(data_127, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_127"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_127 <- loess(data_127$Pb_DIV_Ca ~ data_127$Elapsed_DIV_Time)
+trend1_127 <- data.frame(trend_127 = trend_127$fitted, Elapsed_DIV_Time = data_127$Elapsed_DIV_Time)
+
+ggplot(data_127, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_127, aes(y= trend_127), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_127",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_127$no_trend <- data_127$Pb_DIV_Ca - trend1_127$trend_127
+
+# dividing the new timeseries with the sd(timeserie)
+data_127$nt_sd <- data_127$no_trend/sd(data_127$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_127, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_127",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_127, "data_127.csv", row.names = FALSE)
+```
+
+# ############################### 133 ####################################
+```{r}
+data_133 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_133") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_133$row_number <- seq(1, by=1, length.out=nrow(data_133))
+
+subset(data_133, Pb_DIV_Ca > 0.000015)
+subset(data_133, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_133 <- data_133[-c(1182:1237),]
+data_133 <- data_133[-1,]
+
+data_133$row_number <- seq(1, by=1, length.out=nrow(data_133))
+```
+
+
+```{r}
+data_133#####data_133)/10000, length.out=nrow(data_133))
+
+ggplot(data_133, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_133"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_133 <- loess(data_133$Pb_DIV_Ca ~ data_133$Elapsed_DIV_Time)
+trend1_133 <- data.frame(trend_133 = trend_133$fitted, Elapsed_DIV_Time = data_133$Elapsed_DIV_Time)
+
+ggplot(data_133, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_133, aes(y= trend_133), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_133",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_133$no_trend <- data_133$Pb_DIV_Ca - trend1_133$trend_133
+
+# dividing the new timeseries with the sd(timeserie)
+data_133$nt_sd <- data_133$no_trend/sd(data_133$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_133, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_133",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_133, "data_133.csv", row.names = FALSE)
+```
+
+
+# ############################### 135 ####################################
+```{r}
+data_135 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_135") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_135$row_number <- seq(1, by=1, length.out=nrow(data_135))
+
+subset(data_135, Pb_DIV_Ca > 0.00001)
+subset(data_135, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_135$Pb_DIV_Ca[1535]    <- (data_135$Pb_DIV_Ca[1534] + data_135$Pb_DIV_Ca[1536]) / 2
+data_135$Pb_DIV_Ca[1537]    <- (data_135$Pb_DIV_Ca[1536] + data_135$Pb_DIV_Ca[1538]) / 2
+data_135$Pb_DIV_Ca[1557]    <- (data_135$Pb_DIV_Ca[1558] + data_135$Pb_DIV_Ca[1556]) / 2
+data_135$Pb_DIV_Ca[1874]    <- (data_135$Pb_DIV_Ca[1875] + data_135$Pb_DIV_Ca[1873]) / 2
+data_135$Pb_DIV_Ca[1889]    <- (data_135$Pb_DIV_Ca[1890] + data_135$Pb_DIV_Ca[1888]) / 2
+data_135 <- data_135[-c(1791:1911),]
+data_135 <- data_135[-3,]
+data_135 <- data_135[-2,]
+data_135 <- data_135[-1,]
+
+data_135$row_number <- seq(1, by=1, length.out=nrow(data_135))
+```
+
+
+```{r}
+data_135#####data_135)/10000, length.out=nrow(data_135))
+
+ggplot(data_135, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_135"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_135 <- loess(data_135$Pb_DIV_Ca ~ data_135$Elapsed_DIV_Time)
+trend1_135 <- data.frame(trend_135 = trend_135$fitted, Elapsed_DIV_Time = data_135$Elapsed_DIV_Time)
+
+ggplot(data_135, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_135, aes(y= trend_135), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_135",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_135$no_trend <- data_135$Pb_DIV_Ca - trend1_135$trend_135
+
+# dividing the new timeseries with the sd(timeserie)
+data_135$nt_sd <- data_135$no_trend/sd(data_135$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_135, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_135",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_135, "data_135.csv", row.names = FALSE)
+```
+
+# ############################### 137 ####################################
+```{r}
+data_137 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_137") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_137$row_number <- seq(1, by=1, length.out=nrow(data_137))
+
+subset(data_137, Pb_DIV_Ca > 0.00001)
+subset(data_137, Pb_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_137$Pb_DIV_Ca[71:77] <- data_137$Pb_DIV_Ca[70] + 
+  ((1:7) / 8) * (data_137$Pb_DIV_Ca[78] - data_137$Pb_DIV_Ca[70])
+
+data_137$Pb_DIV_Ca[431:433] <- data_137$Pb_DIV_Ca[430] + 
+  ((1:3) / 4) * (data_137$Pb_DIV_Ca[434] - data_137$Pb_DIV_Ca[430])
+
+data_137 <- data_137[-c(1477:1640),]
+data_137 <- data_137[-3,]
+data_137 <- data_137[-2,]
+data_137 <- data_137[-1,]
+
+
+
+#Fjerner alt som er over 0.00001
+data_137 <- data_137[data_137$Pb_DIV_Ca <= 0.00001, ]
+
+data_137$row_number <- seq(1, by=1, length.out=nrow(data_137))
+```
+
+
+```{r}
+data_137#####data_137)/10000, length.out=nrow(data_137))
+
+ggplot(data_137, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_137"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_137 <- loess(data_137$Pb_DIV_Ca ~ data_137$Elapsed_DIV_Time)
+trend1_137 <- data.frame(trend_137 = trend_137$fitted, Elapsed_DIV_Time = data_137$Elapsed_DIV_Time)
+
+ggplot(data_137, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_137, aes(y= trend_137), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_137",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_137$no_trend <- data_137$Pb_DIV_Ca - trend1_137$trend_137
+
+# dividing the new timeseries with the sd(timeserie)
+data_137$nt_sd <- data_137$no_trend/sd(data_137$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_137, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_137",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_137, "data_137_NEW.csv", row.names = FALSE)
+```
+
+# ############################### 146 ####################################
+```{r}
+data_146 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_146") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_146$row_number <- seq(1, by=1, length.out=nrow(data_146))
+
+subset(data_146, Pb_DIV_Ca > 0.00002)
+```
+
+```{r}
+data_146$Pb_DIV_Ca[450]    <- (data_146$Pb_DIV_Ca[451] + data_146$Pb_DIV_Ca[449]) / 2
+data_146 <- data_146[-3,]
+data_146 <- data_146[-2,]
+data_146 <- data_146[-1,]
+
+
+data_146$row_number <- seq(1, by=1, length.out=nrow(data_146))
+
+# If the last part is outliers, we can remove them by this:
+#data_146 <- data_146[1:1508, ]
+```
+
+
+```{r}
+data_146#####data_146)/10000, length.out=nrow(data_146))
+
+ggplot(data_146, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_146"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_146 <- loess(data_146$Pb_DIV_Ca ~ data_146$Elapsed_DIV_Time)
+trend1_146 <- data.frame(trend_146 = trend_146$fitted, Elapsed_DIV_Time = data_146$Elapsed_DIV_Time)
+
+ggplot(data_146, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_146, aes(y= trend_146), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_146",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_146$no_trend <- data_146$Pb_DIV_Ca - trend1_146$trend_146
+
+# dividing the new timeseries with the sd(timeserie)
+data_146$nt_sd <- data_146$no_trend/sd(data_146$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_146, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_146",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_146, "data_146.csv", row.names = FALSE)
+```
+
+# ############################### 157 ####################################
+```{r}
+data_157 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_157") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_157$row_number <- seq(1, by=1, length.out=nrow(data_157))
+
+subset(data_157, Pb_DIV_Ca > 0.002)
+subset(data_157, Pb_DIV_Ca < 0.00)
+
+```
+
+```{r}
+data_157 <- data_157[-c(1251:1257),]
+data_157 <- data_157[-2,]
+data_157 <- data_157[-1,]
+
+data_157$row_number <- seq(1, by=1, length.out=nrow(data_157))
+```
+
+
+```{r}
+data_157#####data_157)/10000, length.out=nrow(data_157))
+
+ggplot(data_157, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_157"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_157 <- loess(data_157$Pb_DIV_Ca ~ data_157$Elapsed_DIV_Time)
+trend1_157 <- data.frame(trend_157 = trend_157$fitted, Elapsed_DIV_Time = data_157$Elapsed_DIV_Time)
+
+ggplot(data_157, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_157, aes(y= trend_157), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_157",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_157$no_trend <- data_157$Pb_DIV_Ca - trend1_157$trend_157
+
+# dividing the new timeseries with the sd(timeserie)
+data_157$nt_sd <- data_157$no_trend/sd(data_157$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_157, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_157",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_157, "data_157.csv", row.names = FALSE)
+```
+
+# ############################### 164 ####################################
+```{r}
+data_164 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_164") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_164$row_number <- seq(1, by=1, length.out=nrow(data_164))
+
+subset(data_164, Pb_DIV_Ca > 0.00005)
+subset(data_164, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_164$Pb_DIV_Ca[1147:1150] <- data_164$Pb_DIV_Ca[1145] + 
+  ((1:4) / 5) * (data_164$Pb_DIV_Ca[1145] - data_164$Pb_DIV_Ca[1151])
+
+data_164$Pb_DIV_Ca[461]    <- (data_164$Pb_DIV_Ca[460] + data_164$Pb_DIV_Ca[462]) / 2
+data_164$Pb_DIV_Ca[1118]    <- (data_164$Pb_DIV_Ca[1117] + data_164$Pb_DIV_Ca[1119]) / 2
+
+data_164 <- data_164[-c(1237:1238),]
+data_164 <- data_164[-3,]
+data_164 <- data_164[-2,]
+data_164 <- data_164[-1,]
+
+#fjerner alt over 0.00005
+data_164 <- data_164[data_164$Pb_DIV_Ca <= 0.00005, ]
+
+
+data_164$row_number <- seq(1, by=1, length.out=nrow(data_164))
+```
+
+
+```{r}
+data_164#####data_164)/10000, length.out=nrow(data_164))
+
+ggplot(data_164, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_164"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_164 <- loess(data_164$Pb_DIV_Ca ~ data_164$Elapsed_DIV_Time)
+trend1_164 <- data.frame(trend_164 = trend_164$fitted, Elapsed_DIV_Time = data_164$Elapsed_DIV_Time)
+
+ggplot(data_164, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_164, aes(y= trend_164), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_164",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_164$no_trend <- data_164$Pb_DIV_Ca - trend1_164$trend_164
+
+# dividing the new timeseries with the sd(timeserie)
+data_164$nt_sd <- data_164$no_trend/sd(data_164$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_164, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_164",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_164, "data_164.csv", row.names = FALSE)
+```
+
+# ############################### 169 ####################################
+```{r}
+data_169 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_169") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_169$row_number <- seq(1, by=1, length.out=nrow(data_169))
+
+subset(data_169, Pb_DIV_Ca > 0.000012)
+subset(data_169, Pb_DIV_Ca < 0.0005)
+```
+
+```{r}
+data_169$Pb_DIV_Ca[945]    <- (data_169$Pb_DIV_Ca[944] + data_169$Pb_DIV_Ca[946]) / 2
+data_169 <- data_169[-c(1510:1527),]
+data_169 <- data_169[-c(1:25),]
+
+
+data_169$row_number <- seq(1, by=1, length.out=nrow(data_169))
+```
+
+
+```{r}
+data_169#####data_169)/10000, length.out=nrow(data_169))
+
+ggplot(data_169, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_169"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_169 <- loess(data_169$Pb_DIV_Ca ~ data_169$Elapsed_DIV_Time)
+trend1_169 <- data.frame(trend_169 = trend_169$fitted, Elapsed_DIV_Time = data_169$Elapsed_DIV_Time)
+
+ggplot(data_169, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_169, aes(y= trend_169), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_169",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_169$no_trend <- data_169$Pb_DIV_Ca - trend1_169$trend_169
+
+# dividing the new timeseries with the sd(timeserie)
+data_169$nt_sd <- data_169$no_trend/sd(data_169$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_169, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_169",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_169, "data_169.csv", row.names = FALSE)
+```
+
+# ############################### 186 ####################################
+```{r}
+data_186 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_186") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_186$row_number <- seq(1, by=1, length.out=nrow(data_186))
+
+subset(data_186, Pb_DIV_Ca > 0.002)
+subset(data_186, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_186$Pb_DIV_Ca[1570:1572] <- data_186$Pb_DIV_Ca[1569] + 
+  ((1:3) / 4) * (data_186$Pb_DIV_Ca[1573] - data_186$Pb_DIV_Ca[1569])
+
+data_186$Pb_DIV_Ca[1370] <- (data_186$Pb_DIV_Ca[1369] + data_186$Pb_DIV_Ca[1371]) / 2
+data_186$Pb_DIV_Ca[707] <- (data_186$Pb_DIV_Ca[708] + data_186$Pb_DIV_Ca[706]) / 2
+data_186$Pb_DIV_Ca[710] <- (data_186$Pb_DIV_Ca[711] + data_186$Pb_DIV_Ca[709]) / 2
+
+data_186 <- data_186[-2066,]
+data_186 <- data_186[-2065,]
+data_186 <- data_186[-2064,]
+data_186 <- data_186[-3,]
+data_186 <- data_186[-2,]
+data_186 <- data_186[-1,]
+
+data_186$row_number <- seq(1, by=1, length.out=nrow(data_186))
+```
+
+
+```{r}
+data_186#####data_186)/10000, length.out=nrow(data_186))
+
+ggplot(data_186, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_186"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_186 <- loess(data_186$Pb_DIV_Ca ~ data_186$Elapsed_DIV_Time)
+trend1_186 <- data.frame(trend_186 = trend_186$fitted, Elapsed_DIV_Time = data_186$Elapsed_DIV_Time)
+
+ggplot(data_186, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_186, aes(y= trend_186), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_186",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_186$no_trend <- data_186$Pb_DIV_Ca - trend1_186$trend_186
+
+# dividing the new timeseries with the sd(timeserie)
+data_186$nt_sd <- data_186$no_trend/sd(data_186$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_186, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_186",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_186, "data_186.csv", row.names = FALSE)
+```
+
+# ############################### 188 ####################################
+```{r}
+data_188 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_188") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_188$row_number <- seq(1, by=1, length.out=nrow(data_188))
+
+subset(data_188, Pb_DIV_Ca > 0.000015)
+subset(data_188, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_188$Pb_DIV_Ca[3]    <- (data_188$Pb_DIV_Ca[2] + data_188$Pb_DIV_Ca[4]) / 2
+
+data_188 <- data_188[-c(1520:1530),]
+#data_188 <- data_188[-c(360:460),] # det her outliers synes jeg
+data_188 <- data_188[-1,]
+
+data_188 <- data_188[data_188$Pb_DIV_Ca <= 0.000025, ]
+
+
+data_188$row_number <- seq(1, by=1, length.out=nrow(data_188))
+```
+
+
+```{r}
+data_188#####data_188)/10000, length.out=nrow(data_188))
+
+ggplot(data_188, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_188"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_188 <- loess(data_188$Pb_DIV_Ca ~ data_188$Elapsed_DIV_Time)
+trend1_188 <- data.frame(trend_188 = trend_188$fitted, Elapsed_DIV_Time = data_188$Elapsed_DIV_Time)
+
+ggplot(data_188, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_188, aes(y= trend_188), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_188",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_188$no_trend <- data_188$Pb_DIV_Ca - trend1_188$trend_188
+
+# dividing the new timeseries with the sd(timeserie)
+data_188$nt_sd <- data_188$no_trend/sd(data_188$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_188, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_188",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_188, "data_188.csv", row.names = FALSE)
+```
+
+# ############################### 215 ####################################
+```{r}
+data_215 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_215") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_215$row_number <- seq(1, by=1, length.out=nrow(data_215))
+
+subset(data_215, Pb_DIV_Ca > 0.002)
+subset(data_215, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_215 <- data_215[-c(1542:1545),]
+data_215 <- data_215[-c(1:3),]
+
+data_215$row_number <- seq(1, by=1, length.out=nrow(data_215))
+```
+
+
+```{r}
+data_215#####data_215)/10000, length.out=nrow(data_215))
+
+ggplot(data_215, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_215"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_215 <- loess(data_215$Pb_DIV_Ca ~ data_215$Elapsed_DIV_Time)
+trend1_215 <- data.frame(trend_215 = trend_215$fitted, Elapsed_DIV_Time = data_215$Elapsed_DIV_Time)
+
+ggplot(data_215, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_215, aes(y= trend_215), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_215",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_215$no_trend <- data_215$Pb_DIV_Ca - trend1_215$trend_215
+
+# dividing the new timeseries with the sd(timeserie)
+data_215$nt_sd <- data_215$no_trend/sd(data_215$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_215, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_215",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_215, "data_215.csv", row.names = FALSE)
+```
+
+# ############################### 210101 ####################################
+```{r}
+data_210101 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210101") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+
+subset(data_210101, Pb_DIV_Ca > 0.000004)
+```
+
+```{r}
+data_210101$Pb_DIV_Ca[414]    <- (data_210101$Pb_DIV_Ca[415] + data_210101$Pb_DIV_Ca[413]) / 2
+data_210101$Pb_DIV_Ca[370]    <- (data_210101$Pb_DIV_Ca[369] + data_210101$Pb_DIV_Ca[371]) / 2
+data_210101$Pb_DIV_Ca[399]    <- (data_210101$Pb_DIV_Ca[400] + data_210101$Pb_DIV_Ca[398]) / 2
+
+data_210101 <- data_210101[-c(1509:1568),]
+data_210101 <- data_210101[-c(1:13),]
+
+data_210101$row_number <- seq(1, by=1, length.out=nrow(data_210101))
+```
+
+
+```{r}
+data_210101#####data_210101)/10000, length.out=nrow(data_210101))
+
+ggplot(data_210101, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210101"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210101 <- loess(data_210101$Pb_DIV_Ca ~ data_210101$Elapsed_DIV_Time)
+trend1_210101 <- data.frame(trend_210101 = trend_210101$fitted, Elapsed_DIV_Time = data_210101$Elapsed_DIV_Time)
+
+ggplot(data_210101, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210101, aes(y= trend_210101), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210101",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210101$no_trend <- data_210101$Pb_DIV_Ca - trend1_210101$trend_210101
+
+# dividing the new timeseries with the sd(timeserie)
+data_210101$nt_sd <- data_210101$no_trend/sd(data_210101$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210101, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210101",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210101, "data_210101.csv", row.names = FALSE)
+```
+
+# ############################### 210106 ####################################
+```{r}
+data_210106 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210106") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+
+subset(data_210106, Pb_DIV_Ca > 0.000003)
+subset(data_210106, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210106$Pb_DIV_Ca[141] <- (data_210106$Pb_DIV_Ca[140] + data_210106$Pb_DIV_Ca[142]) / 2
+data_210106$Pb_DIV_Ca[159] <- (data_210106$Pb_DIV_Ca[160] + data_210106$Pb_DIV_Ca[158]) / 2
+data_210106$Pb_DIV_Ca[181] <- (data_210106$Pb_DIV_Ca[180] + data_210106$Pb_DIV_Ca[182]) / 2
+
+data_210106$Pb_DIV_Ca[147:152] <- data_210106$Pb_DIV_Ca[146] + 
+  ((1:6) / 7) * (data_210106$Pb_DIV_Ca[153] - data_210106$Pb_DIV_Ca[146])
+
+data_210106$Pb_DIV_Ca[376:385] <- data_210106$Pb_DIV_Ca[375] + 
+  ((1:10) / 11) * (data_210106$Pb_DIV_Ca[386] - data_210106$Pb_DIV_Ca[375])
+
+
+data_210106 <- data_210106[-c(1390:1460),]
+data_210106 <- data_210106[-c(1:3),]
+
+data_210106$row_number <- seq(1, by=1, length.out=nrow(data_210106))
+```
+
+
+```{r}
+data_210106#####data_210106)/10000, length.out=nrow(data_210106))
+
+ggplot(data_210106, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210106"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210106 <- loess(data_210106$Pb_DIV_Ca ~ data_210106$Elapsed_DIV_Time)
+trend1_210106 <- data.frame(trend_210106 = trend_210106$fitted, Elapsed_DIV_Time = data_210106$Elapsed_DIV_Time)
+
+ggplot(data_210106, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210106, aes(y= trend_210106), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210106",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210106$no_trend <- data_210106$Pb_DIV_Ca - trend1_210106$trend_210106
+
+# dividing the new timeseries with the sd(timeserie)
+data_210106$nt_sd <- data_210106$no_trend/sd(data_210106$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210106, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210106",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210106, "data_210106.csv", row.names = FALSE)
+```
+
+# ############################### 210110 ####################################
+```{r}
+data_210110 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210110") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+
+subset(data_210110, Pb_DIV_Ca > 0.000002)
+subset(data_210110, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210110$Pb_DIV_Ca[703] <- (data_210110$Pb_DIV_Ca[702] + data_210110$Pb_DIV_Ca[704]) / 2
+data_210110$Pb_DIV_Ca[705] <- (data_210110$Pb_DIV_Ca[706] + data_210110$Pb_DIV_Ca[704]) / 2
+data_210110$Pb_DIV_Ca[325] <- (data_210110$Pb_DIV_Ca[326] + data_210110$Pb_DIV_Ca[324]) / 2
+data_210110$Pb_DIV_Ca[340] <- (data_210110$Pb_DIV_Ca[339] + data_210110$Pb_DIV_Ca[341]) / 2
+data_210110$Pb_DIV_Ca[794] <- (data_210110$Pb_DIV_Ca[795] + data_210110$Pb_DIV_Ca[793]) / 2
+data_210110$Pb_DIV_Ca[1299] <- (data_210110$Pb_DIV_Ca[1298] + data_210110$Pb_DIV_Ca[1300]) / 2
+data_210110$Pb_DIV_Ca[1462] <- (data_210110$Pb_DIV_Ca[1461] + data_210110$Pb_DIV_Ca[1463]) / 2
+data_210110$Pb_DIV_Ca[1569] <- (data_210110$Pb_DIV_Ca[1568] + data_210110$Pb_DIV_Ca[1570]) / 2
+
+data_210110$Pb_DIV_Ca[1448:1453] <- data_210110$Pb_DIV_Ca[1447] + 
+  ((1:6) / 7) * (data_210110$Pb_DIV_Ca[1454] - data_210110$Pb_DIV_Ca[1447])
+
+data_210110 <- data_210110[-c(1808:1810),]
+
+data_210110 <- data_210110[-2,]
+data_210110 <- data_210110[-1,]
+
+data_210110$row_number <- seq(1, by=1, length.out=nrow(data_210110))
+```
+
+
+```{r}
+data_210110#####data_210110)/10000, length.out=nrow(data_210110))
+
+ggplot(data_210110, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210110"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210110 <- loess(data_210110$Pb_DIV_Ca ~ data_210110$Elapsed_DIV_Time)
+trend1_210110 <- data.frame(trend_210110 = trend_210110$fitted, Elapsed_DIV_Time = data_210110$Elapsed_DIV_Time)
+
+ggplot(data_210110, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210110, aes(y= trend_210110), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210110",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210110$no_trend <- data_210110$Pb_DIV_Ca - trend1_210110$trend_210110
+
+# dividing the new timeseries with the sd(timeserie)
+data_210110$nt_sd <- data_210110$no_trend/sd(data_210110$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210110, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210110",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210110, "data_210110.csv", row.names = FALSE)
+```
+
+# ############################### 210111 ####################################
+```{r}
+data_210111 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210111") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210111$row_number <- seq(1, by=1, length.out=nrow(data_210111))
+
+subset(data_210111, Pb_DIV_Ca > 0.000004)
+subset(data_210111, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210111$Pb_DIV_Ca[163] <- (data_210111$Pb_DIV_Ca[162] + data_210111$Pb_DIV_Ca[164]) / 2
+data_210111$Pb_DIV_Ca[184] <- (data_210111$Pb_DIV_Ca[183] + data_210111$Pb_DIV_Ca[185]) / 2
+data_210111$Pb_DIV_Ca[187] <- (data_210111$Pb_DIV_Ca[188] + data_210111$Pb_DIV_Ca[186]) / 2
+data_210111$Pb_DIV_Ca[224] <- (data_210111$Pb_DIV_Ca[223] + data_210111$Pb_DIV_Ca[225]) / 2
+data_210111$Pb_DIV_Ca[233] <- (data_210111$Pb_DIV_Ca[234] + data_210111$Pb_DIV_Ca[232]) / 2
+data_210111$Pb_DIV_Ca[252] <- (data_210111$Pb_DIV_Ca[251] + data_210111$Pb_DIV_Ca[253]) / 2
+data_210111$Pb_DIV_Ca[272] <- (data_210111$Pb_DIV_Ca[271] + data_210111$Pb_DIV_Ca[273]) / 2
+data_210111$Pb_DIV_Ca[1572] <- (data_210111$Pb_DIV_Ca[1573] + data_210111$Pb_DIV_Ca[1571]) / 2
+data_210111$Pb_DIV_Ca[1657] <- (data_210111$Pb_DIV_Ca[1658] + data_210111$Pb_DIV_Ca[1656]) / 2
+data_210111$Pb_DIV_Ca[1671] <- (data_210111$Pb_DIV_Ca[1672] + data_210111$Pb_DIV_Ca[1670]) / 2
+
+data_210111 <- data_210111[-c(1693:1700),]
+data_210111 <- data_210111[-c(1:3),]
+
+data_210111$row_number <- seq(1, by=1, length.out=nrow(data_210111))
+```
+
+
+```{r}
+data_210111#####data_210111)/10000, length.out=nrow(data_210111))
+
+ggplot(data_210111, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210111"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210111 <- loess(data_210111$Pb_DIV_Ca ~ data_210111$Elapsed_DIV_Time)
+trend1_210111 <- data.frame(trend_210111 = trend_210111$fitted, Elapsed_DIV_Time = data_210111$Elapsed_DIV_Time)
+
+ggplot(data_210111, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210111, aes(y= trend_210111), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210111",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210111$no_trend <- data_210111$Pb_DIV_Ca - trend1_210111$trend_210111
+
+# dividing the new timeseries with the sd(timeserie)
+data_210111$nt_sd <- data_210111$no_trend/sd(data_210111$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210111, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210111",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210111, "data_210111.csv", row.names = FALSE)
+```
+
+# ############################### 210113 ####################################
+```{r}
+data_210113 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210113") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210113$row_number <- seq(1, by=1, length.out=nrow(data_210113))
+
+subset(data_210113, Pb_DIV_Ca > 0.000004)
+subset(data_210113, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210113$Pb_DIV_Ca[871] <- (data_210113$Pb_DIV_Ca[870] + data_210113$Pb_DIV_Ca[872]) / 2
+data_210113$Pb_DIV_Ca[873] <- (data_210113$Pb_DIV_Ca[872] + data_210113$Pb_DIV_Ca[874]) / 2
+
+data_210113 <- data_210113[-c(1450:1467),]
+data_210113 <- data_210113[-c(1:8),]
+
+data_210113$row_number <- seq(1, by=1, length.out=nrow(data_210113))
+```
+
+
+```{r}
+data_210113#####data_210113)/10000, length.out=nrow(data_210113))
+
+ggplot(data_210113, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210113"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210113 <- loess(data_210113$Pb_DIV_Ca ~ data_210113$Elapsed_DIV_Time)
+trend1_210113 <- data.frame(trend_210113 = trend_210113$fitted, Elapsed_DIV_Time = data_210113$Elapsed_DIV_Time)
+
+ggplot(data_210113, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210113, aes(y= trend_210113), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210113",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210113$no_trend <- data_210113$Pb_DIV_Ca - trend1_210113$trend_210113
+
+# dividing the new timeseries with the sd(timeserie)
+data_210113$nt_sd <- data_210113$no_trend/sd(data_210113$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210113, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210113",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210113, "data_210113.csv", row.names = FALSE)
+```
+
+# ############################### 210114 ####################################
+```{r}
+data_210114 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210114") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210114$row_number <- seq(1, by=1, length.out=nrow(data_210114))
+
+subset(data_210114, Pb_DIV_Ca > 0.000004)
+subset(data_210114, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210114$Pb_DIV_Ca[509] <- (data_210114$Pb_DIV_Ca[508] + data_210114$Pb_DIV_Ca[510]) / 2
+data_210114 <- data_210114[-c(1011:1014),]
+data_210114 <- data_210114[-2,]
+data_210114 <- data_210114[-1,]
+
+data_210114$row_number <- seq(1, by=1, length.out=nrow(data_210114))
+```
+
+
+```{r}
+data_210114#####data_210114)/10000, length.out=nrow(data_210114))
+
+ggplot(data_210114, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210114"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210114 <- loess(data_210114$Pb_DIV_Ca ~ data_210114$Elapsed_DIV_Time)
+trend1_210114 <- data.frame(trend_210114 = trend_210114$fitted, Elapsed_DIV_Time = data_210114$Elapsed_DIV_Time)
+
+ggplot(data_210114, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210114, aes(y= trend_210114), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210114",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210114$no_trend <- data_210114$Pb_DIV_Ca - trend1_210114$trend_210114
+
+# dividing the new timeseries with the sd(timeserie)
+data_210114$nt_sd <- data_210114$no_trend/sd(data_210114$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210114, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210114",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210114, "data_210114.csv", row.names = FALSE)
+```
+
+# ############################### 210122 ####################################
+```{r}
+data_210122 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210122") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210122$row_number <- seq(1, by=1, length.out=nrow(data_210122))
+
+subset(data_210122, Pb_DIV_Ca > 0.000006)
+subset(data_210122, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210122$Pb_DIV_Ca[1443] <- (data_210122$Pb_DIV_Ca[1442] + data_210122$Pb_DIV_Ca[1444]) / 2
+
+data_210122 <- data_210122[-c(1460:1463),]
+data_210122 <- data_210122[-c(1:5),]
+
+data_210122$row_number <- seq(1, by=1, length.out=nrow(data_210122))
+```
+
+
+```{r}
+data_210122#####data_210122)/10000, length.out=nrow(data_210122))
+
+ggplot(data_210122, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210122"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210122 <- loess(data_210122$Pb_DIV_Ca ~ data_210122$Elapsed_DIV_Time)
+trend1_210122 <- data.frame(trend_210122 = trend_210122$fitted, Elapsed_DIV_Time = data_210122$Elapsed_DIV_Time)
+
+ggplot(data_210122, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210122, aes(y= trend_210122), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210122",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210122$no_trend <- data_210122$Pb_DIV_Ca - trend1_210122$trend_210122
+
+# dividing the new timeseries with the sd(timeserie)
+data_210122$nt_sd <- data_210122$no_trend/sd(data_210122$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210122, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210122",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210122, "data_210122.csv", row.names = FALSE)
+```
+
+# ############################### 210124 ####################################
+```{r}
+data_210124 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210124") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210124$row_number <- seq(1, by=1, length.out=nrow(data_210124))
+
+subset(data_210124, Pb_DIV_Ca > 0.000003)
+subset(data_210124, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210124$Pb_DIV_Ca[21] <- (data_210124$Pb_DIV_Ca[20] + data_210124$Pb_DIV_Ca[22]) / 2
+data_210124$Pb_DIV_Ca[196] <- (data_210124$Pb_DIV_Ca[195] + data_210124$Pb_DIV_Ca[197]) / 2
+
+data_210124 <- data_210124[-2020,]
+data_210124 <- data_210124[-2019,]
+data_210124 <- data_210124[-2018,]
+data_210124 <- data_210124[-c(1:4),]
+
+data_210124$row_number <- seq(1, by=1, length.out=nrow(data_210124))
+```
+
+
+```{r}
+data_210124#####data_210124)/10000, length.out=nrow(data_210124))
+
+ggplot(data_210124, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210124"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210124 <- loess(data_210124$Pb_DIV_Ca ~ data_210124$Elapsed_DIV_Time)
+trend1_210124 <- data.frame(trend_210124 = trend_210124$fitted, Elapsed_DIV_Time = data_210124$Elapsed_DIV_Time)
+
+ggplot(data_210124, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210124, aes(y= trend_210124), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210124",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210124$no_trend <- data_210124$Pb_DIV_Ca - trend1_210124$trend_210124
+
+# dividing the new timeseries with the sd(timeserie)
+data_210124$nt_sd <- data_210124$no_trend/sd(data_210124$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210124, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210124",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210124, "data_210124.csv", row.names = FALSE)
+```
+
+# ############################### 210125 ####################################
+```{r}
+data_210125 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210125") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210125$row_number <- seq(1, by=1, length.out=nrow(data_210125))
+
+subset(data_210125, Pb_DIV_Ca > 0.000005)
+subset(data_210125, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210125$Pb_DIV_Ca[460]    <- (data_210125$Pb_DIV_Ca[461] + data_210125$Pb_DIV_Ca[459]) / 2
+data_210125$Pb_DIV_Ca[258]    <- (data_210125$Pb_DIV_Ca[259] + data_210125$Pb_DIV_Ca[257]) / 2
+data_210125$Pb_DIV_Ca[312]    <- (data_210125$Pb_DIV_Ca[313] + data_210125$Pb_DIV_Ca[311]) / 2
+data_210125$Pb_DIV_Ca[934]    <- (data_210125$Pb_DIV_Ca[933] + data_210125$Pb_DIV_Ca[935]) / 2
+data_210125$Pb_DIV_Ca[1236]    <- (data_210125$Pb_DIV_Ca[1237] + data_210125$Pb_DIV_Ca[1235]) / 2
+
+data_210125$Pb_DIV_Ca[697:705] <- data_210125$Pb_DIV_Ca[696] + 
+  ((1:9) / 10) * (data_210125$Pb_DIV_Ca[706] - data_210125$Pb_DIV_Ca[696])
+
+data_210125$Pb_DIV_Ca[1590]    <- (data_210125$Pb_DIV_Ca[1591] + data_210125$Pb_DIV_Ca[1589]) / 2
+data_210125$Pb_DIV_Ca[1658]    <- (data_210125$Pb_DIV_Ca[1659] + data_210125$Pb_DIV_Ca[1657]) / 2
+
+data_210125 <- data_210125[-c(1830:1867),]
+data_210125 <- data_210125[-c(1:7),]
+
+data_210125$row_number <- seq(1, by=1, length.out=nrow(data_210125))
+```
+
+
+```{r}
+data_210125#####data_210125)/10000, length.out=nrow(data_210125))
+
+ggplot(data_210125, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210125"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210125 <- loess(data_210125$Pb_DIV_Ca ~ data_210125$Elapsed_DIV_Time)
+trend1_210125 <- data.frame(trend_210125 = trend_210125$fitted, Elapsed_DIV_Time = data_210125$Elapsed_DIV_Time)
+
+ggplot(data_210125, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210125, aes(y= trend_210125), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210125",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210125$no_trend <- data_210125$Pb_DIV_Ca - trend1_210125$trend_210125
+
+# dividing the new timeseries with the sd(timeserie)
+data_210125$nt_sd <- data_210125$no_trend/sd(data_210125$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210125, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210125",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210125, "data_210125.csv", row.names = FALSE)
+```
+
+# ############################### 210127 ####################################
+```{r}
+data_210127 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210127") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210127$row_number <- seq(1, by=1, length.out=nrow(data_210127))
+
+subset(data_210127, Pb_DIV_Ca > 0.0000055)
+subset(data_210127, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210127$Pb_DIV_Ca[14] <- (data_210127$Pb_DIV_Ca[13] + data_210127$Pb_DIV_Ca[15]) / 2
+data_210127$Pb_DIV_Ca[406] <- (data_210127$Pb_DIV_Ca[407] + data_210127$Pb_DIV_Ca[405]) / 2
+data_210127$Pb_DIV_Ca[900] <- (data_210127$Pb_DIV_Ca[901] + data_210127$Pb_DIV_Ca[899]) / 2
+
+data_210127$Pb_DIV_Ca[1520:1521] <- data_210127$Pb_DIV_Ca[1519] + 
+  ((1:2) / 3) * (data_210127$Pb_DIV_Ca[1522] - data_210127$Pb_DIV_Ca[1519])
+
+
+data_210127 <- data_210127[-c(1650:1651),]
+data_210127 <- data_210127[-c(1255:1280),]
+data_210127 <- data_210127[-c(1:4),]
+
+data_210127$row_number <- seq(1, by=1, length.out=nrow(data_210127))
+```
+
+
+```{r}
+data_210127#####data_210127)/10000, length.out=nrow(data_210127))
+
+ggplot(data_210127, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210127"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210127 <- loess(data_210127$Pb_DIV_Ca ~ data_210127$Elapsed_DIV_Time)
+trend1_210127 <- data.frame(trend_210127 = trend_210127$fitted, Elapsed_DIV_Time = data_210127$Elapsed_DIV_Time)
+
+ggplot(data_210127, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210127, aes(y= trend_210127), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210127",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210127$no_trend <- data_210127$Pb_DIV_Ca - trend1_210127$trend_210127
+
+# dividing the new timeseries with the sd(timeserie)
+data_210127$nt_sd <- data_210127$no_trend/sd(data_210127$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210127, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210127",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210127, "data_210127.csv", row.names = FALSE)
+```
+
+# ############################### 210129 ####################################
+```{r}
+data_210129 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210129") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210129$row_number <- seq(1, by=1, length.out=nrow(data_210129))
+
+subset(data_210129, Pb_DIV_Ca > 0.000009)
+subset(data_210129, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210129$Pb_DIV_Ca[593] <- (data_210129$Pb_DIV_Ca[592] + data_210129$Pb_DIV_Ca[594]) / 2
+data_210129$Pb_DIV_Ca[620] <- (data_210129$Pb_DIV_Ca[619] + data_210129$Pb_DIV_Ca[621]) / 2
+data_210129$Pb_DIV_Ca[768] <- (data_210129$Pb_DIV_Ca[767] + data_210129$Pb_DIV_Ca[769]) / 2
+data_210129$Pb_DIV_Ca[1031] <- (data_210129$Pb_DIV_Ca[1030] + data_210129$Pb_DIV_Ca[1032]) / 2
+data_210129$Pb_DIV_Ca[1196] <- (data_210129$Pb_DIV_Ca[1195] + data_210129$Pb_DIV_Ca[1197]) / 2
+data_210129$Pb_DIV_Ca[1328] <- (data_210129$Pb_DIV_Ca[1327] + data_210129$Pb_DIV_Ca[1329]) / 2
+data_210129$Pb_DIV_Ca[1344] <- (data_210129$Pb_DIV_Ca[1345] + data_210129$Pb_DIV_Ca[1343]) / 2
+data_210129$Pb_DIV_Ca[1359] <- (data_210129$Pb_DIV_Ca[1360] + data_210129$Pb_DIV_Ca[1358]) / 2
+data_210129$Pb_DIV_Ca[1404] <- (data_210129$Pb_DIV_Ca[1403] + data_210129$Pb_DIV_Ca[1405]) / 2
+data_210129$Pb_DIV_Ca[1419] <- (data_210129$Pb_DIV_Ca[1420] + data_210129$Pb_DIV_Ca[1418]) / 2
+
+data_210129$Pb_DIV_Ca[1271] <- (data_210129$Pb_DIV_Ca[1270] + data_210129$Pb_DIV_Ca[1272]) / 2
+
+data_210129 <- data_210129[-c(1502:1504),]
+data_210129 <- data_210129[-c(1:3),]
+
+data_210129$row_number <- seq(1, by=1, length.out=nrow(data_210129))
+```
+
+
+```{r}
+data_210129#####data_210129)/10000, length.out=nrow(data_210129))
+
+ggplot(data_210129, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210129"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210129 <- loess(data_210129$Pb_DIV_Ca ~ data_210129$Elapsed_DIV_Time)
+trend1_210129 <- data.frame(trend_210129 = trend_210129$fitted, Elapsed_DIV_Time = data_210129$Elapsed_DIV_Time)
+
+ggplot(data_210129, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210129, aes(y= trend_210129), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210129",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210129$no_trend <- data_210129$Pb_DIV_Ca - trend1_210129$trend_210129
+
+# dividing the new timeseries with the sd(timeserie)
+data_210129$nt_sd <- data_210129$no_trend/sd(data_210129$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210129, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210129",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210129, "data_210129.csv", row.names = FALSE)
+```
+
+
+# ############################### 210149 ####################################
+```{r}
+data_210149 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210149") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210149$row_number <- seq(1, by=1, length.out=nrow(data_210149))
+
+subset(data_210149, Pb_DIV_Ca > 0.000003)
+subset(data_210149, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210149$Pb_DIV_Ca[1718] <- (data_210149$Pb_DIV_Ca[1717] + data_210149$Pb_DIV_Ca[1719]) / 2
+data_210149$Pb_DIV_Ca[209] <- (data_210149$Pb_DIV_Ca[208] + data_210149$Pb_DIV_Ca[210]) / 2
+data_210149$Pb_DIV_Ca[333] <- (data_210149$Pb_DIV_Ca[332] + data_210149$Pb_DIV_Ca[334]) / 2
+data_210149$Pb_DIV_Ca[345] <- (data_210149$Pb_DIV_Ca[346] + data_210149$Pb_DIV_Ca[344]) / 2
+
+data_210149 <- data_210149[-c(1729:1734),]
+data_210149 <- data_210149[-c(1:3),]
+
+
+data_210149$row_number <- seq(1, by=1, length.out=nrow(data_210149))
+```
+
+
+```{r}
+data_210149#####data_210149)/10000, length.out=nrow(data_210149))
+
+ggplot(data_210149, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210149"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210149 <- loess(data_210149$Pb_DIV_Ca ~ data_210149$Elapsed_DIV_Time)
+trend1_210149 <- data.frame(trend_210149 = trend_210149$fitted, Elapsed_DIV_Time = data_210149$Elapsed_DIV_Time)
+
+ggplot(data_210149, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210149, aes(y= trend_210149), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210149",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210149$no_trend <- data_210149$Pb_DIV_Ca - trend1_210149$trend_210149
+
+# dividing the new timeseries with the sd(timeserie)
+data_210149$nt_sd <- data_210149$no_trend/sd(data_210149$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210149, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210149",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210149, "data_210149.csv", row.names = FALSE)
+```
+
+# ############################### 210151 ####################################
+```{r}
+data_210151 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210151") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210151$row_number <- seq(1, by=1, length.out=nrow(data_210151))
+
+subset(data_210151, Pb_DIV_Ca > 0.0000075)
+subset(data_210151, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210151$Pb_DIV_Ca[52] <- (data_210151$Pb_DIV_Ca[51] + data_210151$Pb_DIV_Ca[53]) / 2
+data_210151 <- data_210151[-c(1591:1606),]
+data_210151 <- data_210151[-c(1:3),]
+
+data_210151$row_number <- seq(1, by=1, length.out=nrow(data_210151))
+```
+
+
+```{r}
+data_210151#####data_210151)/10000, length.out=nrow(data_210151))
+
+ggplot(data_210151, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210151"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210151 <- loess(data_210151$Pb_DIV_Ca ~ data_210151$Elapsed_DIV_Time)
+trend1_210151 <- data.frame(trend_210151 = trend_210151$fitted, Elapsed_DIV_Time = data_210151$Elapsed_DIV_Time)
+
+ggplot(data_210151, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210151, aes(y= trend_210151), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210151",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210151$no_trend <- data_210151$Pb_DIV_Ca - trend1_210151$trend_210151
+
+# dividing the new timeseries with the sd(timeserie)
+data_210151$nt_sd <- data_210151$no_trend/sd(data_210151$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210151, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210151",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210151, "data_210151.csv", row.names = FALSE)
+```
+
+# ############################### 210160 ####################################
+```{r}
+data_210160 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210160") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210160$row_number <- seq(1, by=1, length.out=nrow(data_210160))
+
+subset(data_210160, Pb_DIV_Ca > 0.00001)
+subset(data_210160, Pb_DIV_Ca < 0.00025)
+```
+
+```{r}
+data_210160$Pb_DIV_Ca[1528] <- (data_210160$Pb_DIV_Ca[1527] + data_210160$Pb_DIV_Ca[1529]) / 2
+
+data_210160 <- data_210160[-c(1730:1790),]
+data_210160 <- data_210160[-2,]
+data_210160 <- data_210160[-1,]
+
+data_210160$row_number <- seq(1, by=1, length.out=nrow(data_210160))
+```
+
+
+```{r}
+data_210160#####data_210160)/10000, length.out=nrow(data_210160))
+
+ggplot(data_210160, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210160"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210160 <- loess(data_210160$Pb_DIV_Ca ~ data_210160$Elapsed_DIV_Time)
+trend1_210160 <- data.frame(trend_210160 = trend_210160$fitted, Elapsed_DIV_Time = data_210160$Elapsed_DIV_Time)
+
+ggplot(data_210160, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210160, aes(y= trend_210160), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210160",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210160$no_trend <- data_210160$Pb_DIV_Ca - trend1_210160$trend_210160
+
+# dividing the new timeseries with the sd(timeserie)
+data_210160$nt_sd <- data_210160$no_trend/sd(data_210160$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210160, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210160",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210160, "data_210160.csv", row.names = FALSE)
+```
+
+# ############################### 210161 ####################################
+```{r}
+data_210161 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210161") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210161$row_number <- seq(1, by=1, length.out=nrow(data_210161))
+
+subset(data_210161, Pb_DIV_Ca > 0.00002)
+subset(data_210161, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210161$Pb_DIV_Ca[1054] <- (data_210161$Pb_DIV_Ca[1053] + data_210161$Pb_DIV_Ca[1055]) / 2
+
+data_210161 <- data_210161[-c(1740:1746),]
+data_210161 <- data_210161[-c(1:3),]
+
+# data_210161 <- data_210161[data_210161$Pb_DIV_Ca <= 0.000005, ]
+
+
+data_210161$row_number <- seq(1, by=1, length.out=nrow(data_210161))
+```
+
+
+```{r}
+data_210161#####data_210161)/10000, length.out=nrow(data_210161))
+
+ggplot(data_210161, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210161"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210161 <- loess(data_210161$Pb_DIV_Ca ~ data_210161$Elapsed_DIV_Time)
+trend1_210161 <- data.frame(trend_210161 = trend_210161$fitted, Elapsed_DIV_Time = data_210161$Elapsed_DIV_Time)
+
+ggplot(data_210161, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210161, aes(y= trend_210161), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210161",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210161$no_trend <- data_210161$Pb_DIV_Ca - trend1_210161$trend_210161
+
+# dividing the new timeseries with the sd(timeserie)
+data_210161$nt_sd <- data_210161$no_trend/sd(data_210161$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210161, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210161",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210161, "data_210161.csv", row.names = FALSE)
+```
+
+# ############################### 210163 ####################################
+```{r}
+data_210163 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210163") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210163$row_number <- seq(1, by=1, length.out=nrow(data_210163))
+
+subset(data_210163, Pb_DIV_Ca > 0.0000075)
+subset(data_210163, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210163$Pb_DIV_Ca[978:987] <- data_210163$Pb_DIV_Ca[977] +  
+  ((1:10) / 11) * (data_210163$Pb_DIV_Ca[988] - data_210163$Pb_DIV_Ca[977])
+
+data_210163$Pb_DIV_Ca[1081] <- (data_210163$Pb_DIV_Ca[1080] + data_210163$Pb_DIV_Ca[1082]) / 2
+data_210163$Pb_DIV_Ca[1212] <- (data_210163$Pb_DIV_Ca[1213] + data_210163$Pb_DIV_Ca[1211]) / 2
+data_210163$Pb_DIV_Ca[1215] <- (data_210163$Pb_DIV_Ca[1216] + data_210163$Pb_DIV_Ca[1214]) / 2
+
+data_210163 <- data_210163[-c(1551:1553),]
+data_210163 <- data_210163[-2,]
+data_210163 <- data_210163[-1,]
+
+data_210163$row_number <- seq(1, by=1, length.out=nrow(data_210163))
+```
+
+
+```{r}
+data_210163#####data_210163)/10000, length.out=nrow(data_210163))
+
+ggplot(data_210163, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210163"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210163 <- loess(data_210163$Pb_DIV_Ca ~ data_210163$Elapsed_DIV_Time)
+trend1_210163 <- data.frame(trend_210163 = trend_210163$fitted, Elapsed_DIV_Time = data_210163$Elapsed_DIV_Time)
+
+ggplot(data_210163, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210163, aes(y= trend_210163), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210163",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210163$no_trend <- data_210163$Pb_DIV_Ca - trend1_210163$trend_210163
+
+# dividing the new timeseries with the sd(timeserie)
+data_210163$nt_sd <- data_210163$no_trend/sd(data_210163$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210163, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210163",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210163, "data_210163.csv", row.names = FALSE)
+```
+
+# ############################### 210169 ####################################
+```{r}
+data_210169 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210169") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210169$row_number <- seq(1, by=1, length.out=nrow(data_210169))
+
+subset(data_210169, Pb_DIV_Ca > 0.000006)
+subset(data_210169, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210169$Pb_DIV_Ca[1292] <- (data_210169$Pb_DIV_Ca[1291] + data_210169$Pb_DIV_Ca[1293]) / 2
+
+data_210169 <- data_210169[-c(1323:1419),]
+data_210169 <- data_210169[-c(1:7),]
+
+
+data_210169$row_number <- seq(1, by=1, length.out=nrow(data_210169))
+```
+
+
+```{r}
+data_210169#####data_210169)/10000, length.out=nrow(data_210169))
+
+ggplot(data_210169, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210169"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210169 <- loess(data_210169$Pb_DIV_Ca ~ data_210169$Elapsed_DIV_Time)
+trend1_210169 <- data.frame(trend_210169 = trend_210169$fitted, Elapsed_DIV_Time = data_210169$Elapsed_DIV_Time)
+
+ggplot(data_210169, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210169, aes(y= trend_210169), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210169",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210169$no_trend <- data_210169$Pb_DIV_Ca - trend1_210169$trend_210169
+
+# dividing the new timeseries with the sd(timeserie)
+data_210169$nt_sd <- data_210169$no_trend/sd(data_210169$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210169, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210169",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210169, "data_210169.csv", row.names = FALSE)
+```
+
+# ############################### 210172 ####################################
+```{r}
+data_210172 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210172") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210172$row_number <- seq(1, by=1, length.out=nrow(data_210172))
+
+subset(data_210172, Pb_DIV_Ca > 0.000003)
+subset(data_210172, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+#data_210172$Pb_DIV_Ca[9] <- (data_210172$Pb_DIV_Ca[8] + data_210172$Pb_DIV_Ca[10]) / 2
+
+data_210172 <- data_210172[-c(868:956),]
+data_210172 <- data_210172[-c(1:6),]
+
+data_210172$row_number <- seq(1, by=1, length.out=nrow(data_210172))
+```
+
+
+```{r}
+data_210172#####data_210172)/10000, length.out=nrow(data_210172))
+
+ggplot(data_210172, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210172"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210172 <- loess(data_210172$Pb_DIV_Ca ~ data_210172$Elapsed_DIV_Time)
+trend1_210172 <- data.frame(trend_210172 = trend_210172$fitted, Elapsed_DIV_Time = data_210172$Elapsed_DIV_Time)
+
+ggplot(data_210172, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210172, aes(y= trend_210172), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210172",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210172$no_trend <- data_210172$Pb_DIV_Ca - trend1_210172$trend_210172
+
+# dividing the new timeseries with the sd(timeserie)
+data_210172$nt_sd <- data_210172$no_trend/sd(data_210172$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210172, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210172",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210172, "data_210172.csv", row.names = FALSE)
+```
+
+# ############################### 210174 ####################################
+```{r}
+data_210174 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_210174") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_210174$row_number <- seq(1, by=1, length.out=nrow(data_210174))
+
+subset(data_210174, Pb_DIV_Ca > 0.000025)
+subset(data_210174, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_210174$Pb_DIV_Ca[1020] <- (data_210174$Pb_DIV_Ca[1021] + data_210174$Pb_DIV_Ca[1019]) / 2
+data_210174$Pb_DIV_Ca[1760] <- (data_210174$Pb_DIV_Ca[1761] + data_210174$Pb_DIV_Ca[1759]) / 2
+
+data_210174 <- data_210174[-c(2165:2269),]
+data_210174 <- data_210174[-c(1:3),]
+
+data_210174$row_number <- seq(1, by=1, length.out=nrow(data_210174))
+```
+
+
+```{r}
+data_210174#####data_210174)/10000, length.out=nrow(data_210174))
+
+ggplot(data_210174, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210174"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_210174 <- loess(data_210174$Pb_DIV_Ca ~ data_210174$Elapsed_DIV_Time)
+trend1_210174 <- data.frame(trend_210174 = trend_210174$fitted, Elapsed_DIV_Time = data_210174$Elapsed_DIV_Time)
+
+ggplot(data_210174, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_210174, aes(y= trend_210174), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210174",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_210174$no_trend <- data_210174$Pb_DIV_Ca - trend1_210174$trend_210174
+
+# dividing the new timeseries with the sd(timeserie)
+data_210174$nt_sd <- data_210174$no_trend/sd(data_210174$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_210174, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_210174",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_210174, "data_210174.csv", row.names = FALSE)
+```
+
+# ############################### 510158 ####################################
+```{r}
+data_510158 <-merged_data_NEW %>%
+  filter(whale_index == "SMP_510158") %>%
+  select(whale_index, Elapsed_DIV_Time, Pb_DIV_Ca)
+
+data_510158$row_number <- seq(1, by=1, length.out=nrow(data_510158))
+
+subset(data_510158, Pb_DIV_Ca > 0.00001)
+subset(data_510158, Pb_DIV_Ca < 0.00)
+```
+
+```{r}
+data_510158 <- data_510158[-c(2025:2026),]
+data_510158 <- data_510158[-c(1:7),]
+
+data_510158$row_number <- seq(1, by=1, length.out=nrow(data_510158))
+```
+
+
+```{r}
+data_510158#####data_510158)/10000, length.out=nrow(data_510158))
+
+ggplot(data_510158, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_point() +
+  labs(title = paste("Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_510158"),
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_bw()
+```
+
+```{r}
+trend_510158 <- loess(data_510158$Pb_DIV_Ca ~ data_510158$Elapsed_DIV_Time)
+trend1_510158 <- data.frame(trend_510158 = trend_510158$fitted, Elapsed_DIV_Time = data_510158$Elapsed_DIV_Time)
+
+ggplot(data_510158, aes(x = Elapsed_DIV_Time, y = Pb_DIV_Ca)) +
+  geom_line() +
+  geom_line(data = trend1_510158, aes(y= trend_510158), color = "blue") +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_510158",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+```
+
+```{r}
+# subtracting the trend
+data_510158$no_trend <- data_510158$Pb_DIV_Ca - trend1_510158$trend_510158
+
+# dividing the new timeseries with the sd(timeserie)
+data_510158$nt_sd <- data_510158$no_trend/sd(data_510158$no_trend)
+
+# see if they oscillate around 0
+ggplot(data_510158, aes(x = Elapsed_DIV_Time, y = nt_sd)) +
+  geom_line() +
+  labs(title = "Pb_DIV_Ca vs Elapsed_DIV_Time for SMP_510158",
+       x = "Elapsed_DIV_Time",
+       y = "Pb_DIV_Ca") +
+  theme_minimal()
+
+# Exporting
+write.csv(data_510158, "data_510158.csv", row.names = FALSE)
+```
+
+
